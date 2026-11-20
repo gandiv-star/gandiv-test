@@ -23,7 +23,12 @@
 <link rel="modulepreload" href="admin.js">
 </head>
 <body>
-<div id="app"><div class="loading full">લોડ થાય છે…</div></div>
+<div id="app"><div class="splash"><img src="logo.png" alt="ગાંડિવ એકેડેમીનો લોગો"></div></div>
+<script>
+  // છેલ્લે જોયેલી સ્ક્રીન તરત બતાવો (કોડ આવે એ પહેલાં જ)
+  try { var s = localStorage.getItem("gv_snap"); if (s) { document.getElementById("app").innerHTML = s;
+    var r = localStorage.getItem("gv_snap_role"); if (r) document.documentElement.style.setProperty("--role", r); } } catch (e) {}
+</script>
 <dialog id="modal" aria-modal="true"></dialog>
 <div id="toast" role="status" aria-live="polite"></div>
 <script type="module">

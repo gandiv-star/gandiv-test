@@ -37,6 +37,26 @@ export function saveCtx() {
   try { localStorage.setItem(CK(S.user.uid), JSON.stringify({ me: S.me, profile: S.profile, branches: S.branches, year: S.year })); } catch {}
 }
 export function readCtx(uid) { try { return JSON.parse(localStorage.getItem(CK(uid)) || "null"); } catch { return null; } }
+// ---------- ઝડપ માટે: છેલ્લે જોયેલી સ્ક્રીનનો ફોટો (એપ ખોલતાં તરત દેખાય) ----------
+export const SKEL = `<div class="skel"><i></i><i></i><i class="s"></i><i></i></div>`;
+const PK = () => `gv_pg_${S.me?.loginId}_${S.branchId}_${S.page}`;
+let snapT = 0;
+function snapNow() {
+  try {
+    const app = $("#app"); if (!app) return;
+    localStorage.setItem("gv_snap", app.innerHTML);
+    localStorage.setItem("gv_snap_role", getComputedStyle(document.documentElement).getPropertyValue("--role").trim());
+    const v = $("#view");
+    if (v && S.me && !v.querySelector(".skel")) localStorage.setItem(PK(), v.innerHTML);
+  } catch {}
+}
+export function watchSnap() {
+  new MutationObserver(() => { clearTimeout(snapT); snapT = setTimeout(snapNow, 400); })
+    .observe($("#app"), { childList: true, subtree: true, characterData: true });
+  addEventListener("pagehide", snapNow);
+}
+export function clearSnap() { try { Object.keys(localStorage).filter(k => k.startsWith("gv_pg_") || k.startsWith("gv_snap")).forEach(k => localStorage.removeItem(k)); } catch {} }
+
 export function applyCtx(c) {
   S.me = c.me; S.profile = c.profile; S.year = c.year || S.year;
   S.branches = (c.branches || []).slice().sort((a, b) => (a.order ?? 99) - (b.order ?? 99) || String(a.name).localeCompare(String(b.name)));
@@ -160,7 +180,7 @@ export function renderShell() {
     </div>
     <nav class="bottom">${nav.map(([k, l, i]) => `<a href="#/${k}" data-nav="${k}">${ic(i)}<span>${l}</span></a>`).join("")}</nav>
   </div>`;
-  const out = async () => { if (confirm("બહાર નીકળવું છે?")) { await signOut(auth); location.hash = ""; } };
+  const out = async () => { if (confirm("બહાર નીકળવું છે?")) { clearSnap(); await signOut(auth); location.hash = ""; } };
   $("#sideOut").onclick = out; $("#topOut").onclick = out;
   const sel = $("#brsel");
   if (sel) sel.onchange = () => { S.branchId = sel.value; localStorage.setItem("gv_branch", S.branchId); route(); };
@@ -175,7 +195,9 @@ export function route() {
   const allowed = navFor(S.me.role).map(n => n[0]);
   S.page = pages[name] && allowed.includes(name) ? name : "home";
   $$("[data-nav]").forEach(a => a.classList.toggle("on", a.dataset.nav === S.page));
-  v.innerHTML = `<div class="loading">લોડ થાય છે…</div>`;
+  // પાનાનો છેલ્લો ફોટો તરત બતાવો, નવી માહિતી આવે એટલે બદલાઈ જાય
+  let last = null; try { last = localStorage.getItem(PK()); } catch {}
+  v.innerHTML = last || SKEL;
   Promise.resolve(pages[S.page](v)).catch(e => { fail(e); v.innerHTML = `<div class="empty">આ પાનું ખૂલ્યું નહીં. નેટ ચકાસીને ફરી ખોલો.</div>`; });
   window.scrollTo(0, 0);
 }

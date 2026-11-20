@@ -6,7 +6,7 @@ import {
   auth, db, signInWithEmailAndPassword, signOut, onAuthStateChanged, updatePassword,
   doc, getDoc, getDocs, setDoc, updateDoc, collection, serverTimestamp
 } from "./fb.js";
-import { $, esc, S, toast, fail, busy, renderShell, ic, saveCtx, readCtx, applyCtx } from "./core.js";
+import { $, esc, S, toast, fail, busy, renderShell, ic, saveCtx, readCtx, applyCtx, SKEL, clearSnap, watchSnap } from "./core.js";
 
 const loginHtml = (msg = "") => `
 <div class="login">
@@ -98,7 +98,7 @@ async function bootstrapMaster(user) {
 }
 
 let pendingMsg = "";
-const stop = async msg => { pendingMsg = msg; await signOut(auth); };
+const stop = async msg => { pendingMsg = msg; clearSnap(); await signOut(auth); };
 
 // Firebase માંથી તાજી માહિતી: પહેલાં authmap, પછી બાકીનું બધું એકસાથે
 async function fetchFresh(user) {
@@ -125,6 +125,7 @@ const sig = c => JSON.stringify([c.me, c.profile?.name, c.profile?.mustChangePas
 const errMsg = e => (e?.code?.includes("permission") ? "આ ખાતાને પરવાનગી નથી. સંચાલકનો સંપર્ક કરો." : "માહિતી લોડ ન થઈ. નેટ ચકાસીને ફરી પ્રયત્ન કરો.");
 
 export function boot() {
+  watchSnap();
   onAuthStateChanged(auth, async user => {
     S.user = user;
     if (!user) { const m = pendingMsg; pendingMsg = ""; return showLogin(m); }
@@ -141,7 +142,7 @@ export function boot() {
       }).catch(e => console.warn("background refresh", e));
       return;
     }
-    $("#app").innerHTML = `<div class="loading full">લોડ થાય છે…</div>`;
+    $("#app").innerHTML = `<div class="splash"><img src="logo.png" alt="ગાંડિવ એકેડેમીનો લોગો">${SKEL}</div>`;
     try {
       const fresh = await fetchFresh(user);
       if (fresh.stop) return stop(fresh.stop);
