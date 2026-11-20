@@ -1,0 +1,54 @@
+name: Fix uploaded file names
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+concurrency:
+  group: fix-names
+  cancel-in-progress: false
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Rename "name (N).ext" to "name.ext"
+        id: rename
+        shell: bash
+        run: |
+          set -euo pipefail
+          before="${{ github.event.before }}"
+          if [ -z "$before" ] || [ "$before" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$before" 2>/dev/null; then
+            git ls-files -z > /tmp/files
+          else
+            git diff --name-only --diff-filter=AMR -z "$before" HEAD > /tmp/files
+          fi
+          renamed=0
+          while IFS= read -r -d '' f; do
+            [ -f "$f" ] || continue
+            dir=$(dirname "$f"); base=$(basename "$f")
+            new=$(printf '%s' "$base" | sed -E 's/ ?\([0-9]{1,2}\)(\.[A-Za-z0-9]+)$/\1/; s/ ?\([0-9]{1,2}\)$//')
+            [ "$new" = "$base" ] && continue
+            if [ "$dir" = "." ]; then target="$new"; else target="$dir/$new"; fi
+            echo "Rename: $f -> $target"
+            git mv -f "$f" "$target"
+            renamed=$((renamed+1))
+          done < /tmp/files
+          echo "count=$renamed" >> "$GITHUB_OUTPUT"
+      - name: Commit and push
+        if: steps.rename.outputs.count != '0'
+        shell: bash
+        run: |
+          git config user.name "gandiv-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "[auto-rename] ${{ steps.rename.outputs.count }} files"
+          git push
+      - name: Rebuild website
+        if: steps.rename.outputs.count != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST "repos/${{ github.repository }}/pages/builds" || echo "skipped"
