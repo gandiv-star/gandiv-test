@@ -8,7 +8,7 @@ import {
 } from "./fb.js";
 import {
   $, $$, esc, S, ROLES, CAN_CREATE, ID_PREFIX, isMaster, isAdmin, toast, fail, busy, audit,
-  modal, closeModal, page, idToEmail, genPwd, waLink, appUrl, ic, route, renderShell
+  modal, closeModal, page, idToEmail, genPwd, waLink, appUrl, ic, route, renderShell, saveCtx
 } from "./core.js";
 import { ACADEMY } from "./config.js";
 
@@ -114,7 +114,7 @@ function branchForm(b = null) {
           if (!S.branchId) { S.branchId = ref.id; localStorage.setItem("gv_branch", ref.id); }
           audit("branch.create", ref.id, data.name);
         }
-        closeModal(); toast("શાખા સચવાઈ.");
+        saveCtx(); closeModal(); toast("શાખા સચવાઈ.");
         renderShell();
       } catch (e) { fail(e); }
     });
@@ -136,7 +136,7 @@ async function yearTab(el) {
     const y = $("#ysel", el).value;
     if (y === S.year) return toast("આ જ વર્ષ ચાલુ છે.");
     if (!confirm(`ચાલુ વર્ષ ${y} કરવું છે?`)) return;
-    try { await setDoc(doc(db, "meta", "settings"), { currentYear: y, updatedAt: serverTimestamp() }, { merge: true }); S.year = y; audit("year.set", y); toast("વર્ષ બદલાયું."); route(); }
+    try { await setDoc(doc(db, "meta", "settings"), { currentYear: y, updatedAt: serverTimestamp() }, { merge: true }); S.year = y; saveCtx(); audit("year.set", y); toast("વર્ષ બદલાયું."); route(); }
     catch (e2) { fail(e2); }
   }));
 }

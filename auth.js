@@ -6,7 +6,7 @@ import {
   auth, db, signInWithEmailAndPassword, signOut, onAuthStateChanged, updatePassword,
   doc, getDoc, getDocs, setDoc, updateDoc, collection, serverTimestamp
 } from "./fb.js";
-import { $, esc, S, toast, fail, busy, renderShell, ic } from "./core.js";
+import { $, esc, S, toast, fail, busy, renderShell, ic, saveCtx, readCtx, applyCtx } from "./core.js";
 
 const loginHtml = (msg = "") => `
 <div class="login">
@@ -78,26 +78,12 @@ function showChangePassword() {
         await updatePassword(auth.currentUser, a);
         await updateDoc(doc(db, "users", S.me.loginId), { mustChangePassword: false, pwChangedAt: serverTimestamp() });
         S.profile.mustChangePassword = false;
+        saveCtx();
         toast("પાસવર્ડ સચવાયો.");
         renderShell();
       } catch (e) { fail(e); }
     });
   };
-}
-
-async function loadContext() {
-  const st = await getDoc(doc(db, "meta", "settings"));
-  if (st.exists() && st.data().currentYear) S.year = st.data().currentYear;
-  if (S.me.role === "master") {
-    const qs = await getDocs(collection(db, "branches"));
-    S.branches = qs.docs.map(d => ({ id: d.id, ...d.data() }));
-  } else {
-    const list = await Promise.all((S.me.branchIds || []).map(id => getDoc(doc(db, "branches", id))));
-    S.branches = list.filter(d => d.exists()).map(d => ({ id: d.id, ...d.data() }));
-  }
-  S.branches.sort((a, b) => (a.order ?? 99) - (b.order ?? 99) || String(a.name).localeCompare(String(b.name)));
-  const saved = localStorage.getItem("gv_branch");
-  S.branchId = S.branches.some(b => b.id === saved) ? saved : S.branches[0]?.id || null;
 }
 
 // Master નું પહેલું લોગિન: authmap અને profile આપમેળે બને
@@ -114,26 +100,54 @@ async function bootstrapMaster(user) {
 let pendingMsg = "";
 const stop = async msg => { pendingMsg = msg; await signOut(auth); };
 
+// Firebase માંથી તાજી માહિતી: પહેલાં authmap, પછી બાકીનું બધું એકસાથે
+async function fetchFresh(user) {
+  const am = await getDoc(doc(db, "authmap", user.uid));
+  let me = am.exists() ? am.data() : null;
+  if (!me && MASTER_EMAILS.includes(String(user.email).toLowerCase())) me = await bootstrapMaster(user);
+  if (!me || me.active === false) return { stop: "આ ખાતું ચાલુ નથી. શાખાના સંચાલકનો સંપર્ક કરો." };
+  const [pr, st, br] = await Promise.all([
+    getDoc(doc(db, "users", me.loginId)),
+    getDoc(doc(db, "meta", "settings")),
+    me.role === "master"
+      ? getDocs(collection(db, "branches")).then(q => q.docs)
+      : Promise.all((me.branchIds || []).map(id => getDoc(doc(db, "branches", id))))
+  ]);
+  const profile = pr.exists() ? pr.data() : { name: me.loginId };
+  if (profile.active === false) return { stop: "આ ખાતું બંધ કરેલું છે." };
+  return {
+    me, profile,
+    year: (st.exists() && st.data().currentYear) || S.year,
+    branches: br.filter(d => d.exists()).map(d => ({ id: d.id, ...d.data() }))
+  };
+}
+const sig = c => JSON.stringify([c.me, c.profile?.name, c.profile?.mustChangePassword, c.year, (c.branches || []).map(b => [b.id, b.name, b.active, b.order])]);
+const errMsg = e => (e?.code?.includes("permission") ? "આ ખાતાને પરવાનગી નથી. સંચાલકનો સંપર્ક કરો." : "માહિતી લોડ ન થઈ. નેટ ચકાસીને ફરી પ્રયત્ન કરો.");
+
 export function boot() {
   onAuthStateChanged(auth, async user => {
     S.user = user;
     if (!user) { const m = pendingMsg; pendingMsg = ""; return showLogin(m); }
+    const cached = readCtx(user.uid);
+    // ફોનમાં પહેલાંની માહિતી હોય તો તરત એપ ખોલો, અને પાછળથી ચકાસો
+    if (cached?.me && !cached.profile?.mustChangePassword) {
+      applyCtx(cached); renderShell();
+      fetchFresh(user).then(fresh => {
+        if (fresh.stop) return stop(fresh.stop);
+        const changed = sig(fresh) !== sig(cached);
+        applyCtx(fresh); saveCtx();
+        if (fresh.profile.mustChangePassword) return showChangePassword();
+        if (changed) renderShell();
+      }).catch(e => console.warn("background refresh", e));
+      return;
+    }
     $("#app").innerHTML = `<div class="loading full">લોડ થાય છે…</div>`;
     try {
-      const am = await getDoc(doc(db, "authmap", user.uid));
-      let me = am.exists() ? am.data() : null;
-      if (!me && MASTER_EMAILS.includes(String(user.email).toLowerCase())) me = await bootstrapMaster(user);
-      if (!me || me.active === false) return stop("આ ખાતું ચાલુ નથી. શાખાના સંચાલકનો સંપર્ક કરો.");
-      S.me = me;
-      const pr = await getDoc(doc(db, "users", me.loginId));
-      S.profile = pr.exists() ? pr.data() : { name: me.loginId };
-      if (S.profile.active === false) return stop("આ ખાતું બંધ કરેલું છે.");
-      await loadContext();
+      const fresh = await fetchFresh(user);
+      if (fresh.stop) return stop(fresh.stop);
+      applyCtx(fresh); saveCtx();
       if (S.profile.mustChangePassword) return showChangePassword();
       renderShell();
-    } catch (e) {
-      console.error(e);
-      stop(e?.code?.includes("permission") ? "આ ખાતાને પરવાનગી નથી. સંચાલકનો સંપર્ક કરો." : "માહિતી લોડ ન થઈ. નેટ ચકાસીને ફરી પ્રયત્ન કરો.");
-    }
+    } catch (e) { console.error(e); stop(errMsg(e)); }
   });
 }

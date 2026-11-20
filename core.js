@@ -30,6 +30,20 @@ export const S = {
   page: "home"
 };
 
+// ---------- ઝડપ માટે: ફોનમાં સચવાયેલી માહિતી ----------
+const CK = uid => "gv_ctx_" + uid;
+export function saveCtx() {
+  if (!S.user) return;
+  try { localStorage.setItem(CK(S.user.uid), JSON.stringify({ me: S.me, profile: S.profile, branches: S.branches, year: S.year })); } catch {}
+}
+export function readCtx(uid) { try { return JSON.parse(localStorage.getItem(CK(uid)) || "null"); } catch { return null; } }
+export function applyCtx(c) {
+  S.me = c.me; S.profile = c.profile; S.year = c.year || S.year;
+  S.branches = (c.branches || []).slice().sort((a, b) => (a.order ?? 99) - (b.order ?? 99) || String(a.name).localeCompare(String(b.name)));
+  const saved = localStorage.getItem("gv_branch");
+  S.branchId = S.branches.some(b => b.id === saved) ? saved : S.branches[0]?.id || null;
+}
+
 // ---------- રોલ ----------
 export const ROLES = {
   master:       { label: "Master",       color: "#14225A", admin: true },
