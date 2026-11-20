@@ -8,7 +8,7 @@ import {
 import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
   collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, onSnapshot,
-  query, where, runTransaction, serverTimestamp, writeBatch
+  query, where, runTransaction, serverTimestamp, writeBatch, arrayUnion
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 export const app = initializeApp(firebaseConfig);
@@ -29,5 +29,5 @@ export {
   signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword,
   updatePassword, sendPasswordResetEmail,
   collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, onSnapshot,
-  query, where, runTransaction, serverTimestamp, writeBatch
+  query, where, runTransaction, serverTimestamp, writeBatch, arrayUnion
 };

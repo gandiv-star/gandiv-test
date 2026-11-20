@@ -40,12 +40,15 @@ page("home", async v => {
       <div class="card hello"><h1>નમસ્તે, ${name}</h1><p>${esc(branchName(S.branchId) || ACADEMY.name)} • શૈક્ષણિક વર્ષ ${esc(S.year)}</p></div>
       ${noBranch ? `<div class="card warn"><h2>પહેલું પગલું: શાખા ઉમેરો</h2><p>હજુ કોઈ શાખા નથી. ગોઠવણમાં જઈને મહુવા શાખા ઉમેરો.</p><a class="btn primary" href="#/settings">ગોઠવણ ખોલો</a></div>` : ""}
       <div class="grid2">
-        <a class="tile" href="#/batches">${ic("users", 26)}<span>બેચ</span></a>
+        <a class="tile" href="#/admit">${ic("plus", 26)}<span>નવો પ્રવેશ</span></a>
+        <a class="tile" href="#/students">${ic("users", 26)}<span>વિદ્યાર્થીઓ</span></a>
+        <a class="tile" href="#/batches">${ic("batch", 26)}<span>બેચ</span></a>
         <a class="tile" href="#/settings">${ic("gear", 26)}<span>ગોઠવણ અને લોગિન</span></a>
       </div>
-      <p class="muted center">ડેશબોર્ડ, પ્રવેશ, ફી અને હાજરી આગળના ભાગમાં ઉમેરાશે.</p>`;
+      <p class="muted center">ડેશબોર્ડ, ફી અને હાજરી આગળના ભાગમાં ઉમેરાશે.</p>`;
     return;
   }
+  if (r === "student" || r === "parent") return (await import("./students.js")).familyHome(v);
   v.innerHTML = `<div class="card hello"><h1>નમસ્તે, ${name}</h1><p>${esc(ROLES[r]?.label || "")} • ${esc(branchName(S.branchId))}</p></div>
     <p class="muted center">તમારું હોમ આગળના ભાગમાં તૈયાર થશે.</p>`;
 });
@@ -71,7 +74,7 @@ async function branchesTab(el) {
     try {
       const [bs, us] = await Promise.all([
         getDocs(query(collection(db, "batches"), where("branchId", "==", b.id), where("yearId", "==", S.year))),
-        getDocs(query(collection(db, "users"), where("branchId", "==", b.id)))
+        getDocs(query(collection(db, "users"), where("branchId", "==", b.id), where("role", "in", ["branchAdmin", "teacher", "receptionist", "accountant"])))
       ]);
       counts[b.id] = { batches: bs.docs.filter(d => d.data().active !== false).length, staff: us.docs.filter(d => d.data().active !== false && !["student", "parent"].includes(d.data().role)).length };
     } catch { counts[b.id] = { batches: "-", staff: "-" }; }
@@ -144,7 +147,7 @@ async function yearTab(el) {
 // ---------- લોગિન ----------
 async function loginsTab(el) {
   if (!S.branchId) { el.innerHTML = `<div class="empty">પહેલાં શાખા ઉમેરો.</div>`; return; }
-  const qs = await getDocs(query(collection(db, "users"), where("branchId", "==", S.branchId)));
+  const qs = await getDocs(query(collection(db, "users"), where("branchId", "==", S.branchId), where("role", "in", ["branchAdmin", "teacher", "receptionist", "accountant"])));
   const users = qs.docs.map(d => d.data()).filter(u => !["student", "parent"].includes(u.role))
     .sort((a, b) => (a.active === false) - (b.active === false) || String(a.loginId).localeCompare(String(b.loginId), "en", { numeric: true }));
   const roles = CAN_CREATE[S.me.role] || [];
@@ -278,7 +281,7 @@ page("batches", async v => {
   if (!S.branchId) { v.innerHTML = `<div class="empty">પહેલાં ગોઠવણમાં શાખા ઉમેરો.</div>`; return; }
   const [bs, us] = await Promise.all([
     getDocs(query(collection(db, "batches"), where("branchId", "==", S.branchId), where("yearId", "==", S.year))),
-    getDocs(query(collection(db, "users"), where("branchId", "==", S.branchId)))
+    getDocs(query(collection(db, "users"), where("branchId", "==", S.branchId), where("role", "==", "teacher")))
   ]);
   const teachers = us.docs.map(d => d.data()).filter(u => u.role === "teacher" && u.active !== false);
   const stdOrder = s => (STDS.includes(s) ? Number(s) : 50);

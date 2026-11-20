@@ -6,7 +6,7 @@ import {
   auth, db, signInWithEmailAndPassword, signOut, onAuthStateChanged, updatePassword,
   doc, getDoc, getDocs, setDoc, updateDoc, collection, serverTimestamp
 } from "./fb.js";
-import { $, esc, S, toast, fail, busy, renderShell, ic, saveCtx, readCtx, applyCtx, SKEL, clearSnap, watchSnap } from "./core.js";
+import { $, esc, S, toast, fail, busy, renderShell, ic, saveCtx, readCtx, applyCtx, SKEL, clearSnap, watchSnap, welcomeOnce } from "./core.js";
 
 const loginHtml = (msg = "") => `
 <div class="login">
@@ -80,7 +80,7 @@ function showChangePassword() {
         S.profile.mustChangePassword = false;
         saveCtx();
         toast("પાસવર્ડ સચવાયો.");
-        renderShell();
+        renderShell(); welcomeOnce();
       } catch (e) { fail(e); }
     });
   };
@@ -132,7 +132,7 @@ export function boot() {
     const cached = readCtx(user.uid);
     // ફોનમાં પહેલાંની માહિતી હોય તો તરત એપ ખોલો, અને પાછળથી ચકાસો
     if (cached?.me && !cached.profile?.mustChangePassword) {
-      applyCtx(cached); renderShell();
+      applyCtx(cached); renderShell(); welcomeOnce();
       fetchFresh(user).then(fresh => {
         if (fresh.stop) return stop(fresh.stop);
         const changed = sig(fresh) !== sig(cached);
@@ -148,7 +148,7 @@ export function boot() {
       if (fresh.stop) return stop(fresh.stop);
       applyCtx(fresh); saveCtx();
       if (S.profile.mustChangePassword) return showChangePassword();
-      renderShell();
+      renderShell(); welcomeOnce();
     } catch (e) { console.error(e); stop(errMsg(e)); }
   });
 }

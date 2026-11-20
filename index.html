@@ -21,6 +21,7 @@
 <link rel="modulepreload" href="core.js">
 <link rel="modulepreload" href="auth.js">
 <link rel="modulepreload" href="admin.js">
+<link rel="modulepreload" href="students.js">
 </head>
 <body>
 <div id="app"><div class="splash"><img src="logo.png" alt="ગાંડિવ એકેડેમીનો લોગો"></div></div>
@@ -34,6 +35,7 @@
 <script type="module">
   import { boot } from "./auth.js";
   import "./admin.js";
+  import "./students.js";
   boot();
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 </script>

@@ -39,7 +39,7 @@ export function saveCtx() {
 export function readCtx(uid) { try { return JSON.parse(localStorage.getItem(CK(uid)) || "null"); } catch { return null; } }
 // ---------- ઝડપ માટે: છેલ્લે જોયેલી સ્ક્રીનનો ફોટો (એપ ખોલતાં તરત દેખાય) ----------
 export const SKEL = `<div class="skel"><i></i><i></i><i class="s"></i><i></i></div>`;
-const PK = () => `gv_pg_${S.me?.loginId}_${S.branchId}_${S.page}`;
+const PK = () => `gv_pg_${S.me?.loginId}_${S.branchId}_${location.hash || "#/home"}`;
 let snapT = 0;
 function snapNow() {
   try {
@@ -86,12 +86,15 @@ export const ID_PREFIX = { branchAdmin: "S", receptionist: "S", accountant: "S",
 
 // ---------- મેનુ ----------
 const NAV = {
-  admin: [["home", "હોમ", "home"], ["batches", "બેચ", "users"], ["settings", "ગોઠવણ", "gear"]],
+  admin: [["home", "હોમ", "home"], ["students", "વિદ્યાર્થી", "users"], ["batches", "બેચ", "batch"], ["settings", "ગોઠવણ", "gear"]],
   staff: [["home", "હોમ", "home"]],
   teacher: [["home", "આજે", "home"]],
   student: [["home", "હોમ", "home"]],
   parent: [["home", "હોમ", "home"]]
 };
+// મેનુમાં ન દેખાય પણ ખૂલી શકે એવાં પાનાં
+const EXTRA = { admin: ["admit", "student", "viewas"] };
+const extraFor = r => (["master", "branchAdmin"].includes(r) ? EXTRA.admin : []);
 const navFor = r => (["master", "branchAdmin"].includes(r) ? NAV.admin : r === "teacher" ? NAV.teacher : r === "student" ? NAV.student : r === "parent" ? NAV.parent : NAV.staff);
 
 export const ICON = {
@@ -101,12 +104,89 @@ export const ICON = {
   user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
   out: '<path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h11"/>',
   share: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/>',
-  back: '<path d="M15 5 8 12l7 7"/>'
+  back: '<path d="M15 5 8 12l7 7"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  cam: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+  check: '<path d="m5 12 5 5 9-10"/>',
+  phone: '<path d="M5 4h4l2 5-3 2a11 11 0 0 0 5 5l2-3 5 2v4a2 2 0 0 1-2 2A17 17 0 0 1 3 6a2 2 0 0 1 2-2"/>',
+  edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/>',
+  print: '<path d="M7 9V4h10v5M7 17H4v-7h16v7h-3"/><path d="M7 14h10v6H7z"/>',
+  eye: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  key: '<circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3"/>',
+  wa: '<path d="M4 20l1.3-4A8 8 0 1 1 8 18.7z"/>',
+  batch: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',
+  rupee: '<path d="M7 5h10M7 9h10M8 5c5 0 5 8 0 8h-1l7 7"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 8h0M12 11v6"/>',
+  link: '<path d="M10 14a4 4 0 0 0 6 0l3-3a4 4 0 0 0-6-6l-1 1M14 10a4 4 0 0 0-6 0l-3 3a4 4 0 0 0 6 6l1-1"/>',
+  dl: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
+  snd: '<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/>',
+  mute: '<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="m17 9 5 6M22 9l-5 6"/>'
 };
 export const ic = (n, size = 22) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n] || ""}</svg>`;
 
+// ---------- વાઇબ્રેશન (Android માં; iPhone માં બ્રાઉઝર સપોર્ટ કરતું નથી) ----------
+const VIB = { tap: 8, ok: 18, err: [35, 50, 35], done: [20, 60, 40] };
+export function buzz(kind = "tap") {
+  try { if (localStorage.getItem("gv_vib") !== "off") navigator.vibrate?.(VIB[kind] || kind); } catch {}
+}
+// નાનાં બટન દબાવો એટલે હળવું "ટક"
+document.addEventListener("click", e => {
+  if (e.target.closest(".bottom a, .side-nav a, .chip, .tab, .seg button, .switch, .agree, .acts a, .tile, .fab, .srow, .btn.primary")) buzz("tap");
+}, { capture: true, passive: true });
+
+// ---------- અવાજ: ફોનનો ગુજરાતી કોમ્પ્યુટર અવાજ; ન હોય તો નાની ધૂન ----------
+export const soundOn = () => { try { return localStorage.getItem("gv_snd") !== "off"; } catch { return true; } };
+let actx = null;
+export function chime(notes = [660, 880, 1320]) {
+  if (!soundOn()) return;
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    notes.forEach((f, i) => {
+      const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime + i * 0.13;
+      o.type = "sine"; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.18, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+      o.connect(g).connect(actx.destination); o.start(t); o.stop(t + 0.4);
+    });
+  } catch {}
+}
+function guVoice() {
+  const vs = window.speechSynthesis?.getVoices() || [];
+  return vs.find(v => /^gu/i.test(v.lang)) || null;
+}
+// બ્રાઉઝર પહેલા ટચ પછી જ અવાજ વગાડવા દે: ત્યાં સુધી રાહ જુએ
+let pendingSay = null;
+export function say(text, fallback = [660, 880, 1320]) {
+  if (!soundOn()) return;
+  const go = () => {
+    const ss = window.speechSynthesis, v = guVoice();
+    if (!ss || !v) return chime(fallback);
+    ss.cancel();
+    const u = new SpeechSynthesisUtterance(text); u.voice = v; u.lang = v.lang; u.rate = 0.95;
+    ss.speak(u);
+  };
+  const run = () => (window.speechSynthesis && !window.speechSynthesis.getVoices().length
+    ? (window.speechSynthesis.onvoiceschanged = () => { window.speechSynthesis.onvoiceschanged = null; go(); }, setTimeout(go, 800))
+    : go());
+  if (navigator.userActivation && !navigator.userActivation.hasBeenActive) {
+    pendingSay = run;
+    addEventListener("pointerdown", () => { const f = pendingSay; pendingSay = null; f?.(); }, { once: true });
+  } else run();
+}
+// દિવસમાં એક જ વાર સ્વાગત
+export function welcomeOnce() {
+  if (!S.me) return;
+  const k = "gv_welcome_" + S.me.loginId, today = ymd();
+  try { if (localStorage.getItem(k) === today) return; localStorage.setItem(k, today); } catch {}
+  // વિદ્યાર્થી: "અટક નામ પિતા" માંથી નામ; સ્ટાફ: પહેલો શબ્દ; વાલી/Master: નામ વગર
+  const parts = String(S.profile?.name || "").trim().split(/\s+/);
+  const first = S.me.role === "student" ? (parts[1] || parts[0]) : ["parent", "master"].includes(S.me.role) ? "" : parts[0];
+  say(`${first ? "નમસ્તે " + first + ", " : ""}ગાંડિવ એકેડેમીમાં આપનું સ્વાગત છે`);
+}
+
 // ---------- toast અને ભૂલ ----------
 export function toast(msg, err = false) {
+  buzz(err ? "err" : "ok");
   const t = $("#toast");
   t.textContent = msg; t.className = err ? "show err" : "show";
   clearTimeout(toast._t); toast._t = setTimeout(() => (t.className = ""), 3500);
@@ -174,6 +254,7 @@ export function renderShell() {
         <img src="logo.png" alt="ગાંડિવ એકેડેમીનો લોગો" class="top-logo">
         <div class="top-who"><b>${esc(S.profile?.name || S.me.loginId)}</b><span>${brSel} ${IS_TEST ? '<em class="test-tag">ટેસ્ટિંગ</em>' : ""}</span></div>
         <span class="role-chip">${esc(meta.label)}</span>
+        <button type="button" class="icon-btn" id="sndBtn" aria-label="${soundOn() ? "અવાજ બંધ કરો" : "અવાજ ચાલુ કરો"}">${ic(soundOn() ? "snd" : "mute")}</button>
         <button type="button" class="icon-btn top-out" id="topOut" aria-label="બહાર નીકળો">${ic("out")}</button>
       </header>
       <main id="view" class="view"></main>
@@ -182,6 +263,14 @@ export function renderShell() {
   </div>`;
   const out = async () => { if (confirm("બહાર નીકળવું છે?")) { clearSnap(); await signOut(auth); location.hash = ""; } };
   $("#sideOut").onclick = out; $("#topOut").onclick = out;
+  $("#sndBtn").onclick = e => {
+    const on = !soundOn();
+    try { localStorage.setItem("gv_snd", on ? "on" : "off"); } catch {}
+    e.currentTarget.innerHTML = ic(on ? "snd" : "mute");
+    e.currentTarget.setAttribute("aria-label", on ? "અવાજ બંધ કરો" : "અવાજ ચાલુ કરો");
+    if (on) chime([880, 1320]); else window.speechSynthesis?.cancel();
+    toast(on ? "અવાજ ચાલુ." : "અવાજ બંધ. ફરી ચાલુ કરવા આ જ બટન દબાવો.");
+  };
   const sel = $("#brsel");
   if (sel) sel.onchange = () => { S.branchId = sel.value; localStorage.setItem("gv_branch", S.branchId); route(); };
   window.onhashchange = route;
@@ -192,7 +281,7 @@ export function route() {
   const v = $("#view");
   if (!v || !S.me) return;   // લોગિન પાનું ખુલ્લું હોય ત્યારે કંઈ નહીં
   const name = (location.hash.replace(/^#\/?/, "").split("/")[0]) || "home";
-  const allowed = navFor(S.me.role).map(n => n[0]);
+  const allowed = navFor(S.me.role).map(n => n[0]).concat(extraFor(S.me.role));
   S.page = pages[name] && allowed.includes(name) ? name : "home";
   $$("[data-nav]").forEach(a => a.classList.toggle("on", a.dataset.nav === S.page));
   // પાનાનો છેલ્લો ફોટો તરત બતાવો, નવી માહિતી આવે એટલે બદલાઈ જાય
