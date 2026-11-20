@@ -1,0 +1,109 @@
+rules_version = '2';
+// =============================================================
+//  ગાંડિવ એકેડેમી V2 — સુરક્ષાના નિયમો (ભાગ 1–2)
+//  authmap/{uid} = કોણ છે (રોલ, શાખા, ચાલુ/બંધ). users/{loginId} = માહિતી.
+// =============================================================
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signed() { return request.auth != null; }
+    function amPath() { return /databases/$(database)/documents/authmap/$(request.auth.uid); }
+    function ok() { return signed() && exists(amPath()) && get(amPath()).data.active == true; }
+    function me() { return get(amPath()).data; }
+    function role() { return me().role; }
+    function isMaster() { return ok() && role() == 'master'; }
+    function isBA() { return ok() && role() == 'branchAdmin'; }
+    function inMy(b) { return b in me().branchIds; }
+    function adminOf(b) { return isMaster() || (isBA() && inMy(b)); }
+    // સંચાલક આ રોલ બનાવી/બદલી શકે (Master બધા, master સિવાય)
+    function baRoles() { return ['teacher', 'receptionist', 'accountant', 'student', 'parent']; }
+    function masterEmail() {
+      return signed() && request.auth.token.email in ['gandivacademy@gmail.com'];
+    }
+    function onlyKeys(keys) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys); }
+
+    // ---------- ID → અંદરનો ઈમેઇલ (લોગિન પહેલાં વંચાય; યાદી નહીં) ----------
+    match /loginIndex/{id} {
+      allow get: if true;
+      allow list: if false;
+      allow create, update: if isMaster()
+        || (isBA() && getAfter(/databases/$(database)/documents/users/$(id)).data.branchId in me().branchIds
+                   && getAfter(/databases/$(database)/documents/users/$(id)).data.role in baRoles());
+      allow delete: if isMaster();
+    }
+
+    // ---------- authmap ----------
+    match /authmap/{uid} {
+      allow get: if (signed() && request.auth.uid == uid) || isMaster()
+        || (isBA() && resource.data.branchIds.hasAny(me().branchIds));
+      allow list: if false;
+      // Master નું પહેલું લોગિન
+      allow create: if (masterEmail() && request.auth.uid == uid
+                        && request.resource.data.role == 'master' && request.resource.data.loginId == 'MASTER'
+                        && request.resource.data.active == true)
+        || (isMaster() && request.resource.data.role != 'master'
+            && getAfter(/databases/$(database)/documents/users/$(request.resource.data.loginId)).data.uid == uid)
+        || (isBA() && request.resource.data.role in baRoles()
+            && request.resource.data.branchIds.hasOnly(me().branchIds)
+            && getAfter(/databases/$(database)/documents/users/$(request.resource.data.loginId)).data.uid == uid);
+      allow update: if (isMaster() && resource.data.role != 'master' && onlyKeys(['active', 'replacedBy']))
+        || (isBA() && resource.data.role in baRoles() && resource.data.branchIds.hasAny(me().branchIds)
+            && onlyKeys(['active', 'replacedBy']));
+      allow delete: if false;
+    }
+
+    // ---------- users (લોગિન ID પ્રમાણે) ----------
+    match /users/{loginId} {
+      allow get: if (ok() && me().loginId == loginId) || isMaster()
+        || (isBA() && resource.data.branchId in me().branchIds);
+      allow list: if isMaster() || (isBA() && resource.data.branchId in me().branchIds);
+      allow create: if (isMaster() && (request.resource.data.role != 'master' || loginId == 'MASTER'))
+        || (isBA() && request.resource.data.role in baRoles() && request.resource.data.branchId in me().branchIds
+            && request.resource.data.loginId == loginId);
+      // પોતે: ફક્ત પાસવર્ડ બદલ્યાની નોંધ
+      allow update: if (ok() && me().loginId == loginId && onlyKeys(['mustChangePassword', 'pwChangedAt'])
+                        && request.resource.data.mustChangePassword == false)
+        || (isMaster() && request.resource.data.loginId == resource.data.loginId)
+        || (isBA() && resource.data.role in baRoles() && resource.data.branchId in me().branchIds
+            && request.resource.data.role == resource.data.role
+            && request.resource.data.branchId == resource.data.branchId
+            && request.resource.data.loginId == resource.data.loginId);
+      allow delete: if isMaster();
+    }
+
+    // ---------- શાખા, ગોઠવણ ----------
+    match /branches/{bid} {
+      allow read: if isMaster() || (ok() && inMy(bid));
+      allow write: if isMaster();
+    }
+    match /meta/{docId} {
+      allow read: if ok();
+      allow write: if isMaster();
+    }
+    // ID ક્રમ (T1, S1 ...)
+    match /counters/{docId} {
+      allow read, write: if isMaster() || isBA();
+    }
+
+    // ---------- બેચ ----------
+    match /batches/{id} {
+      allow read: if isMaster() || (ok() && resource.data.branchId in me().branchIds);
+      allow create: if adminOf(request.resource.data.branchId)
+        && request.resource.data.branchId is string && request.resource.data.yearId is string;
+      allow update: if adminOf(resource.data.branchId) && request.resource.data.branchId == resource.data.branchId;
+      allow delete: if isMaster();
+    }
+
+    // ---------- Audit Log: ફક્ત ઉમેરાય, કોઈ બદલી ન શકે ----------
+    match /auditLogs/{id} {
+      allow create: if ok() && request.resource.data.by == me().loginId;
+      allow read: if isMaster();
+      allow update, delete: if false;
+    }
+
+    // બાકીનું બધું બંધ
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

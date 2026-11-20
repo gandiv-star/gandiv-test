@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="gu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ગાંડિવ એકેડેમી</title>
+<meta name="theme-color" content="#14225A">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Gujarati:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="app"><div class="loading full">લોડ થાય છે…</div></div>
+<dialog id="modal" aria-modal="true"></dialog>
+<div id="toast" role="status" aria-live="polite"></div>
+<script type="module">
+  import { boot } from "./auth.js";
+  import "./admin.js";
+  boot();
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+</script>
+</body>
+</html>
