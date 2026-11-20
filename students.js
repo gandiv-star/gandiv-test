@@ -116,7 +116,7 @@ page("admit", async v => {
     getDoc(metaRef()),
     getDocs(query(collection(db, "batches"), where("branchId", "==", S.branchId), where("yearId", "==", S.year))),
     editId ? getDoc(doc(db, "students", editId)) : null,
-    editId ? getDoc(doc(db, "photos", editId)) : null
+    editId ? getDoc(doc(db, "photos", editId)).catch(() => null) : null
   ]);
   META = ms.exists() ? ms.data() : {};
   BATCHES = bs.docs.map(d => ({ id: d.id, ...d.data() })).filter(b => b.active !== false);
@@ -474,9 +474,9 @@ function showDone(s, st, parent, pc) {
 // ================= વિદ્યાર્થીની ફાઇલ =================
 page("student", async v => {
   const id = hashArg();
-  const [ss, ps, us] = await Promise.all([getDoc(doc(db, "students", id)), getDoc(doc(db, "photos", id)), getDoc(doc(db, "users", id))]);
+  const [ss, ps, us] = await Promise.all([getDoc(doc(db, "students", id)), getDoc(doc(db, "photos", id)).catch(() => null), getDoc(doc(db, "users", id)).catch(() => null)]);
   if (!ss.exists()) { v.innerHTML = `<div class="empty">આ વિદ્યાર્થી મળ્યો નહીં.</div><a class="btn line" href="#/students">યાદીમાં પાછા</a>`; return; }
-  const s = ss.data(), photo = ps.exists() ? ps.data().data : "", u = us.exists() ? us.data() : null;
+  const s = ss.data(), photo = ps?.exists() ? ps.data().data : "", u = us?.exists() ? us.data() : null;
   const tab = sessionStorage.getItem("gv_ftab") || "info";
   const off = s.status === "cancelled";
   const kv = rows => `<div class="kv">${rows.filter(r => r[1]).map(([a, b]) => `<span>${a}</span><b>${b}</b>`).join("")}</div>`;
