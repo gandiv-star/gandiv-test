@@ -75,7 +75,7 @@ page("students", async v => {
     <div class="row-between">
       <span style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn line" id="csv">${ic("dl", 18)} Excel માં લો</button>
       ${canAdmit() ? `<a class="btn line" href="#/assign">${ic("batch", 18)} બેચ ગોઠવો</a>` : ""}</span>
-      ${canAdmit() ? `<a class="fab" href="#/admit">${ic("plus", 20)} નવો પ્રવેશ</a>` : ""}
+      ${canAdmit() ? `<a class="fab" href="#/admit">${ic("plus", 20)} ${isDE() ? "જૂનું ફોર્મ" : "નવો પ્રવેશ"}</a>` : ""}
     </div>`;
   const draw = () => {
     const q = $("#q").value.trim().toLowerCase();
@@ -116,7 +116,7 @@ const BW = [[/boy/i, /boy|કુમાર|છોકરા/i], [/girl/i, /girl|�
 function matchBatch(dr) {
   const std = String(dr.s || "");
   let c = BATCHES.filter(b => String(b.std || "") === std || new RegExp(`(^|\\D)${std}(\\D|$)`).test(b.name));
-  for (const [inGf, inB] of BW) if (inGf.test(dr.b || "")) c = c.filter(b => inB.test(b.name));
+  for (const [inGf, inB] of BW) if (inGf.test(dr.b || "")) { const f = c.filter(b => inB.test(b.name)); if (f.length) c = f; }
   return c;
 }
 const norm = x => String(x || "").toLowerCase().replace(/\s+/g, "");
@@ -162,7 +162,7 @@ page("admit", async v => {
       }
     } else {
       F = d && !d.draftKey ? d : blank();
-      if (isDE()) F.legacy = true;
+      if (isDE() && !F.legacy) { F.legacy = true; F.formDate = ""; }
       if (!F.legacy) F.formDate = F.formDate || ymd();
     }
   }
@@ -317,7 +317,7 @@ function wire(v) {
   });
   const re = () => { saveDraft(); drawStep(); };
   $("#usegf", v)?.addEventListener("click", () => { F.name = F.gf.n; re(); });
-  $("#legacy", v)?.addEventListener("click", () => { F.legacy = !F.legacy; if (!F.legacy) F.formNo = ""; re(); });
+  $("#legacy", v)?.addEventListener("click", () => { F.legacy = !F.legacy; F.formNo = ""; F.formDate = F.legacy ? "" : ymd(); re(); });
   $$("[data-std]", v).forEach(b => b.onclick = () => { if (F.std !== b.dataset.std) { F.std = b.dataset.std; F.batchId = ""; F.batchName = ""; } re(); });
   $$("[data-bt]", v).forEach(b => b.onclick = () => { const x = BATCHES.find(y => y.id === b.dataset.bt); const same = F.batchId === x.id; F.batchId = same ? "" : x.id; F.batchName = same ? "" : x.name; re(); });
   $$("[data-crs]", v).forEach(b => b.onclick = () => { const c = b.dataset.crs, a = F.courses || (F.courses = []); a.includes(c) ? a.splice(a.indexOf(c), 1) : a.push(c); re(); });
@@ -356,6 +356,7 @@ function wire(v) {
 function check(step) {
   if (step === 0) {
     if ((F.legacy || EDIT) && !num(F.formNo)) return "ફોર્મ ક્રમાંક લખો.";
+    if (F.legacy && !F.formDate) return "કાગળના ફોર્મ પરની તારીખ લખો.";
     if (!String(F.name || "").trim()) return "વિદ્યાર્થીનું નામ લખો.";
     if (!F.std) return "ધોરણ પસંદ કરો.";
   }
