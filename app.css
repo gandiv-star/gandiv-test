@@ -186,7 +186,7 @@ h1 { font-size: 22px; } h2 { font-size: 17px; }
 
 a.srow { color: var(--text); text-decoration: none; }
 .ph img, .photo-box img { width: 100%; height: 100%; object-fit: cover; }
-.photo-box { overflow: hidden; cursor: pointer; }
+.photo-box { overflow: hidden; cursor: pointer; flex: 0 0 auto; }
 .switch, .agree { width: 100%; border: 0; background: none; text-align: left; cursor: pointer; padding: 0; color: inherit; }
 .agree { background: #F1F3F8; padding: 12px; }
 .agree.on { background: var(--okbg); }

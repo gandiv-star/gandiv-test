@@ -8,11 +8,11 @@ import {
   runTransaction, serverTimestamp, writeBatch, arrayUnion
 } from "./fb.js";
 import {
-  $, $$, esc, S, isAdmin, toast, fail, busy, audit, page, ic, route, renderShell, buzz, say,
+  $, $$, esc, S, isAdmin, canAdmit, toast, fail, busy, audit, page, ic, route, renderShell, buzz, say,
   money, fmtD, ymd, waLink, appUrl, modal, closeModal
 } from "./core.js";
 import { ACADEMY } from "./config.js";
-import { createLogin, resetLogin, showCreds } from "./admin.js";
+import { createLogin, resetLogin, showCreds, reserveId } from "./admin.js";
 
 const STDS = ["7", "8", "9", "10", "11", "12"];
 const COURSES = ["NEET", "GUJCET", "JEE", "NMMS", "CET"];
@@ -34,6 +34,8 @@ const branchName = id => S.branches.find(b => b.id === id)?.name || "";
 const curBranch = () => S.branches.find(b => b.id === S.branchId) || {};
 const rosterRef = () => doc(db, "rosters", `${S.branchId}_${S.year}`);
 const metaRef = () => doc(db, "branchMeta", S.branchId);
+const draftRef = () => doc(db, "drafts", S.branchId);
+const isDE = () => S.me?.role === "dataEntry";
 const num = v => Math.max(0, Math.round(Number(String(v ?? "").replace(/[^\d.]/g, "")) || 0));
 const mob10 = v => String(v || "").replace(/\D/g, "").slice(-10);
 const initial = n => esc((String(n || "?").trim()[0]) || "?");
@@ -53,7 +55,8 @@ function feeTag(pay, paid) {
 // યાદીમાં રાખવાની ટૂંકી માહિતી
 const rosterEntry = s => ({
   n: s.name, s: s.std, b: s.batchId || "", bn: s.batchName || "", v: s.village || "",
-  m: s.mobParent || "", p: num(s.fee?.pay), pd: num(s.fee?.paid), f: s.formNo || "", x: s.status || "active"
+  m: s.mobParent || "", p: num(s.fee?.pay), pd: num(s.fee?.paid), f: s.formNo || "", x: s.status || "active",
+  l: s.hasLogin === false ? 0 : 1
 });
 
 // ================= યાદી =================
@@ -70,8 +73,9 @@ page("students", async v => {
     ${batches.length ? `<div class="hscroll" role="group" aria-label="બેચ">${[["", "બધી બેચ"], ...batches].map(([id, n]) => `<button type="button" class="chip ${(flt.b || "") === id ? "on" : ""}" data-fb="${esc(id)}">${esc(n)}</button>`).join("")}</div>` : ""}
     <div class="card" style="gap:0" id="rows"></div>
     <div class="row-between">
-      <button type="button" class="btn line" id="csv">${ic("dl", 18)} Excel માં લો</button>
-      ${isAdmin() ? `<a class="fab" href="#/admit">${ic("plus", 20)} નવો પ્રવેશ</a>` : ""}
+      <span style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn line" id="csv">${ic("dl", 18)} Excel માં લો</button>
+      ${canAdmit() ? `<a class="btn line" href="#/assign">${ic("batch", 18)} બેચ ગોઠવો</a>` : ""}</span>
+      ${canAdmit() ? `<a class="fab" href="#/admit">${ic("plus", 20)} નવો પ્રવેશ</a>` : ""}
     </div>`;
   const draw = () => {
     const q = $("#q").value.trim().toLowerCase();
@@ -85,7 +89,7 @@ page("students", async v => {
     $("#rows").innerHTML = rows.map(r => `<a class="srow" href="#/student/${encodeURIComponent(r.id)}">
         <span class="ph">${initial(r.n)}</span>
         <span class="grow"><b>${esc(r.n)}</b><span class="sub">${esc(r.id)} • ${cls(r.s, r.bn)}${r.v ? " • " + esc(r.v) : ""}</span></span>
-        ${feeTag(r.p, r.pd)}</a>`).join("")
+        ${r.l === 0 && isAdmin() ? `<span class="fee-small">લોગિન બાકી</span>` : feeTag(r.p, r.pd)}</a>`).join("")
       || `<p class="muted center">${list.length ? "આ શોધમાં કોઈ વિદ્યાર્થી નથી." : "હજુ કોઈ પ્રવેશ નથી. \"નવો પ્રવેશ\" દબાવો."}</p>`;
     window.__rows = rows;
   };
@@ -106,18 +110,32 @@ page("students", async v => {
 // ================= પ્રવેશ ફોર્મ =================
 // F = ફોર્મની બધી માહિતી. ડ્રાફ્ટ ફોનમાં સચવાય.
 const DK = () => `gv_adm_draft_${S.branchId}`;
-let F = null, STEP = 0, EDIT = null, META = {}, BATCHES = [];
+let F = null, STEP = 0, EDIT = null, META = {}, BATCHES = [], ROSTER = {};
+// Google Form ની બેચ ("10 Boys", "12 com") → આપણી બેચ ("ધોરણ 10 boys morning", "ધોરણ 12 કોમર્સ")
+const BW = [[/boy/i, /boy|કુમાર|છોકરા/i], [/girl/i, /girl|કન્યા|છોકરી/i], [/sci/i, /sci|સાયન્સ|વિજ્ઞાન/i], [/com/i, /com|કોમર્સ|વાણિજ્ય/i], [/art/i, /art|આર્ટ્સ|વિનયન/i]];
+function matchBatch(dr) {
+  const std = String(dr.s || "");
+  let c = BATCHES.filter(b => String(b.std || "") === std || new RegExp(`(^|\\D)${std}(\\D|$)`).test(b.name));
+  for (const [inGf, inB] of BW) if (inGf.test(dr.b || "")) c = c.filter(b => inB.test(b.name));
+  return c;
+}
+const norm = x => String(x || "").toLowerCase().replace(/\s+/g, "");
 
 page("admit", async v => {
-  if (!isAdmin()) { location.hash = "#/students"; return; }
+  if (!canAdmit()) { location.hash = "#/students"; return; }
   if (!S.branchId) { v.innerHTML = `<div class="empty">પહેલાં શાખા ઉમેરો.</div>`; return; }
-  const editId = hashArg();
-  const [ms, bs, old, ph] = await Promise.all([
+  const arg = hashArg();
+  const draftKey = arg.startsWith("d:") ? arg.slice(2) : "";
+  const editId = draftKey ? "" : arg;
+  const [ms, bs, old, ph, rs, ds] = await Promise.all([
     getDoc(metaRef()),
     getDocs(query(collection(db, "batches"), where("branchId", "==", S.branchId), where("yearId", "==", S.year))),
     editId ? getDoc(doc(db, "students", editId)) : null,
-    editId ? getDoc(doc(db, "photos", editId)).catch(() => null) : null
+    editId ? getDoc(doc(db, "photos", editId)).catch(() => null) : null,
+    getDoc(rosterRef()).catch(() => null),
+    draftKey ? getDoc(draftRef()) : null
   ]);
+  ROSTER = (rs?.exists() && rs.data().list) || {};
   META = ms.exists() ? ms.data() : {};
   BATCHES = bs.docs.map(d => ({ id: d.id, ...d.data() })).filter(b => b.active !== false);
   if (editId) {
@@ -126,9 +144,27 @@ page("admit", async v => {
     F.fee = F.fee || {}; F.siblings = F.siblings || [];
   } else {
     EDIT = null;
+    const dr = draftKey ? ds?.data()?.list?.[draftKey] : null;
+    if (draftKey && !dr) { v.innerHTML = `<div class="empty">આ નામ યાદીમાં મળ્યું નહીં.</div>`; return; }
+    if (dr?.done) { location.hash = `#/student/${encodeURIComponent(dr.done)}`; return; }
     let d = null; try { d = JSON.parse(localStorage.getItem(DK()) || "null"); } catch {}
-    F = d || blank();
-    if (!F.legacy) F.formDate = F.formDate || ymd();
+    if (dr) {
+      // Google Form ની માહિતી પહેલેથી (એ જ નામનો અધૂરો ડ્રાફ્ટ હોય તો એ જ ચાલુ)
+      if (d?.draftKey === draftKey) F = d;
+      else {
+        F = blank();
+        const bts = matchBatch(dr), bt = bts.length === 1 ? bts[0] : null;
+        Object.assign(F, {
+          draftKey, gf: dr, legacy: true, formDate: "", std: dr.s || "", school: dr.sc || "",
+          batchId: bt?.id || "", batchName: bt?.name || "",
+          mobParent: dr.mp || "", mobStudent: dr.ms || "", waSame: !dr.mw || dr.mw === dr.mp, mobWa: dr.mw || ""
+        });
+      }
+    } else {
+      F = d && !d.draftKey ? d : blank();
+      if (isDE()) F.legacy = true;
+      if (!F.legacy) F.formDate = F.formDate || ymd();
+    }
   }
   STEP = 0;
   drawStep();
@@ -154,7 +190,7 @@ const sugg = (k, items) => (items || []).length ? `<div class="sugg"><span class
 
 function drawStep() {
   const v = $("#view"); if (!v) return;
-  const title = EDIT ? "પ્રવેશમાં ફેરફાર" : "નવો પ્રવેશ";
+  const title = EDIT ? "પ્રવેશમાં ફેરફાર" : F.legacy ? "જૂનું ફોર્મ ચડાવો" : "નવો પ્રવેશ";
   const sub = `${esc(F.name || branchName(S.branchId) + " શાખા")} • પગલું ${STEP + 1} / 4`;
   v.innerHTML = `
     <div class="row-between"><div class="grow"><h1 class="page-title">${title}</h1><span class="sub">${sub}</span></div>
@@ -173,8 +209,9 @@ function drawStep() {
 function step1() {
   const stdB = BATCHES.filter(b => !F.std || b.std === F.std || (!b.std && b.course));
   return `
-  ${EDIT ? "" : `<div class="card"><button type="button" class="switch ${F.legacy ? "on" : ""}" id="legacy" aria-pressed="${F.legacy}">
-    <span class="grow" style="text-align:left"><b>જૂનું કાગળનું ફોર્મ ચડાવું છું</b><span class="sub">ચાલુ કરો તો ફોર્મ ક્રમાંક અને તારીખ જાતે લખી શકાય</span></span><i></i></button></div>`}
+  ${F.gf ? `<div class="note info">${ic("info", 20)}<div><b>Google Form માં હતું:</b> ${esc(F.gf.n)} • ${esc(F.gf.b)}${F.gf.sc ? " • " + esc(F.gf.sc) : ""} • વાલી ${esc(F.gf.mp)}<br>કાગળનું ફોર્મ જોઈને ચકાસો અને બાકીનું ભરો.${!F.batchId ? `<br><b>બેચ:</b> ખબર હોય તો પસંદ કરો, નહીં તો ખાલી રાખો — પછી "બેચ ગોઠવો" માંથી એક ટચમાં થશે.` : ""} <button type="button" class="link-btn" id="usegf">અંગ્રેજી નામ વાપરો</button></div></div>` : ""}
+  ${EDIT || isDE() || F.gf ? "" : `<div class="card"><button type="button" class="switch ${F.legacy ? "on" : ""}" id="legacy" aria-pressed="${F.legacy}">
+    <span class="grow" style="text-align:left"><b>જૂનું કાગળનું ફોર્મ ચડાવું છું</b><span class="sub">ફોર્મ ક્રમાંક-તારીખ જાતે લખાય. લોગિન પછીથી "જૂનો ડેટા" માંથી બનશે.</span></span><i></i></button></div>`}
   <div class="card">
     <div class="grid2">
       ${F.legacy || EDIT ? fld("formNo", "ફોર્મ ક્રમાંક", { mode: "numeric", req: true }) : `<div class="field"><label>ફોર્મ ક્રમાંક</label><input value="આપમેળે: ${num(META[`form_${S.year}`]) + 1}" disabled></div>`}
@@ -212,7 +249,7 @@ function step3() {
   return `
   <div class="card"><h2>મોબાઇલ નંબર</h2>
     ${fld("mobParent", "વાલીનો મોબાઇલ નંબર", { type: "tel", mode: "numeric", req: true })}
-    <div id="pinfo">${F.parentHit ? parentNote(F.parentHit) : ""}</div>
+    <div id="pinfo">${pinfoHtml()}</div>
     ${fld("mobStudent", "વિદ્યાર્થીનો મોબાઇલ નંબર (હોય તો)", { type: "tel", mode: "numeric" })}
     <div class="field"><span class="lbl">WhatsApp મોબાઇલ નંબર</span>${seg("waSame", "વાલીનો જ", "બીજો નંબર", F.waSame ? "વાલીનો જ" : "બીજો નંબર")}</div>
     ${F.waSame ? "" : fld("mobWa", "WhatsApp નંબર", { type: "tel", mode: "numeric" })}
@@ -279,6 +316,7 @@ function wire(v) {
     saveDraft();
   });
   const re = () => { saveDraft(); drawStep(); };
+  $("#usegf", v)?.addEventListener("click", () => { F.name = F.gf.n; re(); });
   $("#legacy", v)?.addEventListener("click", () => { F.legacy = !F.legacy; if (!F.legacy) F.formNo = ""; re(); });
   $$("[data-std]", v).forEach(b => b.onclick = () => { if (F.std !== b.dataset.std) { F.std = b.dataset.std; F.batchId = ""; F.batchName = ""; } re(); });
   $$("[data-bt]", v).forEach(b => b.onclick = () => { const x = BATCHES.find(y => y.id === b.dataset.bt); const same = F.batchId === x.id; F.batchId = same ? "" : x.id; F.batchName = same ? "" : x.name; re(); });
@@ -305,7 +343,7 @@ function wire(v) {
   if (mp) mp.addEventListener("change", () => findParent(mob10(mp.value)));
   $("#back", v).onclick = () => {
     if (STEP) { STEP--; drawStep(); return; }
-    location.hash = EDIT ? `#/student/${encodeURIComponent(EDIT)}` : "#/students";
+    location.hash = EDIT ? `#/student/${encodeURIComponent(EDIT)}` : (F.gf || isDE()) ? "#/entry" : "#/students";
   };
   $("#next", v).onclick = e => {
     const err = check(STEP);
@@ -335,7 +373,9 @@ function check(step) {
 async function findParent(m) {
   F.parentHit = null;
   const box = $("#pinfo");
-  if (m.length === 10 && !EDIT) {
+  // યાદીમાં એ જ વાલી-નંબર વાળાં ભાઈ-બહેન
+  F.sibHit = m.length === 10 && !EDIT ? Object.entries(ROSTER).filter(([, r]) => r.m === m && r.x !== "cancelled").map(([id, r]) => `${r.n} (${id})`) : [];
+  if (m.length === 10 && !EDIT && isAdmin()) {
     try {
       const q = await getDocs(query(collection(db, "users"), where("branchId", "==", S.branchId), where("role", "==", "parent"), where("mobile", "==", m)));
       const p = q.docs[0]?.data();
@@ -343,8 +383,10 @@ async function findParent(m) {
     } catch (e) { console.warn(e); }
   }
   saveDraft();
-  if (box) box.innerHTML = F.parentHit ? parentNote(F.parentHit) : "";
+  if (box) box.innerHTML = pinfoHtml();
 }
+const pinfoHtml = () => F.parentHit ? parentNote(F.parentHit)
+  : (F.sibHit || []).length ? `<div class="note info">${ic("link", 20)}<div><b>આ નંબર પહેલેથી છે:</b> ${esc(F.sibHit.join(", "))}<br>લોગિન બને ત્યારે બધાંનો એક જ વાલી થશે.</div></div>` : "";
 
 // ફોટો નાનો કરો: 240x300, JPEG — લગભગ 15-25 KB
 function shrink(file) {
@@ -392,7 +434,7 @@ async function saveAdmission() {
     b.update(doc(db, "students", id), data);
     b.set(doc(db, "photos", id), { branchId: S.branchId, parentId: F.parentId || "", data: F.photo || "" });
     b.set(rosterRef(), { branchId: S.branchId, yearId: S.year, list: { [id]: rosterEntry({ ...F, ...data }) } }, { merge: true });
-    b.update(doc(db, "users", id), { name: data.name, mobile: data.mobStudent || mobParent });
+    if (isAdmin() && F.hasLogin !== false) b.update(doc(db, "users", id), { name: data.name, mobile: data.mobStudent || mobParent });
     b.set(metaRef(), metaUpd, { merge: true });
     await b.commit();
     audit("student.edit", id, data.name);
@@ -410,6 +452,8 @@ async function saveAdmission() {
     tx.set(metaRef(), { [fk]: Math.max(last, n) }, { merge: true });
     return n;
   });
+  // જૂનું કાગળનું ફોર્મ: લોગિન પછીથી ("જૂનો ડેટા" → લોગિન બનાવો)
+  if (F.legacy) return saveLegacy(data, metaUpd);
   // 2) વાલી: પહેલેથી છે કે નવો?
   if (!F.parentHit) await findParent(mobParent);
   let parent = F.parentHit, parentCreds = null;
@@ -440,6 +484,44 @@ async function saveAdmission() {
   audit("student.admit", id, `${data.name} • ફોર્મ ${data.formNo}`);
   localStorage.removeItem(DK());
   showDone(full, st, parent, parentCreds);
+}
+
+async function saveLegacy(data, metaUpd) {
+  const id = await reserveId("G");
+  const full = {
+    ...data, loginId: id, parentId: "", hasLogin: false, status: "active",
+    acceptedBy: S.me.loginId, acceptedByName: S.profile?.name || "", createdAt: serverTimestamp(),
+    ...(F.draftKey ? { gfKey: F.draftKey } : {})
+  };
+  const b = writeBatch(db);
+  b.set(doc(db, "students", id), full);
+  if (F.photo) b.set(doc(db, "photos", id), { branchId: S.branchId, parentId: "", data: F.photo });
+  b.set(rosterRef(), { branchId: S.branchId, yearId: S.year, list: { [id]: rosterEntry(full) } }, { merge: true });
+  b.set(metaRef(), metaUpd, { merge: true });
+  if (F.draftKey) b.set(draftRef(), { branchId: S.branchId, list: { [F.draftKey]: { done: id, f: data.formNo } } }, { merge: true });
+  await b.commit();
+  audit("student.legacy", id, `${data.name} • ફોર્મ ${data.formNo}`);
+  localStorage.removeItem(DK());
+  const photo = F.photo, key = F.draftKey, batch = F.gf?.b;
+  buzz("done"); toast("ચડાવાયું ✓");
+  // આગળનું બાકી નામ (એ જ બેચમાં)
+  let next = "";
+  if (key) try {
+    const ds = await getDoc(draftRef());
+    const L = Object.entries(ds.data()?.list || {}).filter(([, d]) => !d.done).sort((a, b) => Number(a[1].i) - Number(b[1].i));
+    next = (L.find(([, d]) => d.b === batch) || L[0] || [])[0] || "";
+  } catch {}
+  const v = $("#view");
+  v.innerHTML = `
+    <div class="card"><div class="okhead"><span class="tick">${ic("check", 34)}</span><h1>${esc(full.name)}</h1>
+      <span class="sub">ચડાવાયું • ${esc(id)} • ${cls(full.std, full.batchName)} • ફોર્મ ${esc(full.formNo)}</span></div>
+      <p class="hint center">વિદ્યાર્થી-વાલીનું લોગિન પછીથી Master/સંચાલક "જૂનો ડેટા" માંથી બનાવશે.</p></div>
+    ${next ? `<a class="btn primary big" href="#/admit/d:${encodeURIComponent(next)}">આગળનું ફોર્મ ભરો →</a>` : ""}
+    <div class="grid2"><a class="btn line" href="#/entry">બાકી યાદી</a><a class="btn line" href="#/admit" id="again">${ic("plus", 18)} બીજું ફોર્મ</a></div>
+    <button type="button" class="btn line big" id="pdf">${ic("print", 18)} પ્રવેશ ફોર્મ PDF</button>`;
+  $("#pdf").onclick = () => printForm(full, photo);
+  $("#again").onclick = e => { if (location.hash === "#/admit") { e.preventDefault(); route(); } };
+  window.scrollTo(0, 0);
 }
 
 function showDone(s, st, parent, pc) {
@@ -482,7 +564,7 @@ page("student", async v => {
   const kv = rows => `<div class="kv">${rows.filter(r => r[1]).map(([a, b]) => `<span>${a}</span><b>${b}</b>`).join("")}</div>`;
   v.innerHTML = `
     <div class="row-between"><a class="btn line" href="#/students">${ic("back", 18)} યાદી</a>
-      ${isAdmin() ? `<a class="btn line" href="#/admit/${encodeURIComponent(id)}">${ic("edit", 18)} ફેરફાર</a>` : ""}</div>
+      ${canAdmit() ? `<a class="btn line" href="#/admit/${encodeURIComponent(id)}">${ic("edit", 18)} ફેરફાર</a>` : ""}</div>
     <div class="card">
       <div class="prof"><span class="ph lg">${photo ? `<img src="${photo}" alt="${esc(s.name)} નો ફોટો">` : initial(s.name)}</span>
         <div class="grow"><h1>${esc(s.name)}</h1><span class="sub">${esc(id)} • ${cls(s.std, s.batchName)} • ${esc(branchName(s.branchId))}</span>
@@ -504,15 +586,16 @@ page("student", async v => {
       ["પહેલાં ટ્યુશન", s.prevTuition === "હા" ? `હા • ${esc(s.prevWhere)} ${s.prevStd ? "(ધો. " + esc(s.prevStd) + ")" : ""}` : esc(s.prevTuition)]
     ])}</div>
     <div class="card"><h2>પરિવાર</h2>${kv([
-      ["વાલી લોગિન", `${esc(s.parentId)} • ${esc(s.mobParent)}`], ["વિદ્યાર્થીનો મોબાઇલ", esc(s.mobStudent)],
+      ["વાલી", `${s.parentId ? esc(s.parentId) + " • " : ""}${esc(s.mobParent)}`], ["વિદ્યાર્થીનો મોબાઇલ", esc(s.mobStudent)],
       ["WhatsApp", s.waSame ? "" : esc(s.mobWa)], ["માતા", esc(s.mother)],
       ["પિતા", esc([s.fatherEdu, s.fatherJob].filter(Boolean).join(" • "))], ["માતા (અભ્યાસ/વ્યવસાય)", esc([s.motherEdu, s.motherJob].filter(Boolean).join(" • "))],
       ["ભાઈ/બહેન", (s.siblings || []).map(x => esc(x.n) + (x.st === "હા" && x.s ? ` (ધો. ${esc(x.s)}${x.c ? ", " + esc(x.c) : ""})` : "")).join("<br>")]
     ])}</div>
     ${s.note ? `<div class="card"><h2>Note</h2><p style="margin:0">${esc(s.note)}</p></div>` : ""}
     ${isAdmin() ? `<div class="card"><h2>લોગિન</h2>
-      <p class="sub">વિદ્યાર્થી ID: <b>${esc(id)}</b>${u?.active === false ? " • બંધ" : ""} • વાલી ID: <b>${esc(s.parentId)}</b></p>
-      <div class="grid2"><button type="button" class="btn line" id="rp">${ic("key", 18)} પાસવર્ડ રીસેટ</button>
+      ${s.hasLogin === false ? `<p class="sub">લોગિન હજી બન્યું નથી (જૂનું ફોર્મ).</p><a class="btn line" href="#/old">${ic("key", 18)} "જૂનો ડેટા" માંથી લોગિન બનાવો</a>`
+      : `<p class="sub">વિદ્યાર્થી ID: <b>${esc(id)}</b>${u?.active === false ? " • બંધ" : ""} • વાલી ID: <b>${esc(s.parentId)}</b></p>`}
+      <div class="grid2">${s.hasLogin === false ? "" : `<button type="button" class="btn line" id="rp">${ic("key", 18)} પાસવર્ડ રીસેટ</button>`}
       <button type="button" class="btn line ${off ? "" : "danger"}" id="cx">${off ? "પ્રવેશ ફરી ચાલુ" : "પ્રવેશ રદ / બંધ"}</button></div></div>` : ""}`
     : tab === "fee" ? `<div class="card"><h2>ફી</h2>${kv([
       ["પ્રવેશ ફી / સ્ટેશનરી", money(s.fee?.adm)], ["અભ્યાસ ફી", money(s.fee?.tui)], ["ટોટલ ફી", money(s.fee?.total)],
@@ -544,7 +627,7 @@ page("student", async v => {
         const b = writeBatch(db);
         b.update(doc(db, "students", id), { status: st, updatedAt: serverTimestamp() });
         b.set(rosterRef(), { list: { [id]: { x: st } } }, { merge: true });
-        b.update(doc(db, "users", id), { active: on });
+        if (u) b.update(doc(db, "users", id), { active: on });
         if (u?.uid) b.update(doc(db, "authmap", u.uid), { active: on });
         await b.commit(); audit(on ? "student.restore" : "student.cancel", id, s.name);
         toast(on ? "પ્રવેશ ફરી ચાલુ થયો." : "પ્રવેશ રદ થયો."); route();
@@ -659,3 +742,224 @@ export async function familyHome(v) {
     }).join("") || `<div class="empty">હજુ કોઈ બાળક જોડાયેલું નથી.</div>`}
     <p class="muted center">હાજરી, ગેરહાજરીની જાણ અને પરિણામ આગળના ભાગમાં ઉમેરાશે.</p>`;
 }
+
+// ================= બાકી ફોર્મ (Google Form ની યાદી) — ડેટા એન્ટ્રી / Master =================
+export async function entryPage(v) {
+  if (!S.branchId) { v.innerHTML = `<div class="empty">શાખા પસંદ નથી.</div>`; return; }
+  const ds = await getDoc(draftRef());
+  const all = Object.entries((ds.exists() && ds.data().list) || {}).map(([k, d]) => ({ k, ...d }))
+    .sort((a, b) => Number(a.i) - Number(b.i));
+  const done = all.filter(d => d.done).length;
+  const flt = JSON.parse(sessionStorage.getItem("gv_eflt") || '{"st":"p"}');
+  const batches = [...new Set(all.map(d => d.b).filter(Boolean))];
+  v.innerHTML = `
+    <div class="card hello"><h1>નમસ્તે${isDE() ? ", " + esc(String(S.profile?.name || "").split(" ")[0]) : ""}</h1><p>કાગળનાં પ્રવેશ ફોર્મ એપમાં ચડાવવાનાં છે</p></div>
+    ${all.length ? `<div class="grid2"><div class="card center" style="gap:2px"><b class="big-num" style="color:#DC2626">${all.length - done}</b><span class="sub">બાકી</span></div>
+      <div class="card center" style="gap:2px"><b class="big-num" style="color:#16A34A">${done}</b><span class="sub">પૂરા થયા</span></div></div>
+    <label class="search">${ic("search", 20)}<span class="sr">શોધો</span><input id="eq" type="search" value="${esc(flt.q || "")}" placeholder="નામ કે મોબાઇલથી શોધો" autocomplete="off"></label>
+    <div class="hscroll">${[["p", "બાકી"], ["d", "પૂરા"], ["a", "બધા"]].map(([k, l]) => `<button type="button" class="chip ${flt.st === k ? "on" : ""}" data-est="${k}">${l}</button>`).join("")}</div>
+    <div class="hscroll">${[["", "બધી બેચ"], ...batches.map(b => [b, b])].map(([k, l]) => `<button type="button" class="chip ${(flt.b || "") === k ? "on" : ""}" data-eb="${esc(k)}">${esc(l)}</button>`).join("")}</div>
+    <div class="card" style="gap:0" id="erows"></div>`
+    : `<div class="empty">હજુ Google Form ની યાદી ચડાવી નથી.${isAdmin() ? ` <a href="#/old">જૂનો ડેટા</a> માંથી ચડાવો.` : " Master ને કહો."}</div>`}
+    <a class="btn line big" href="#/admit">${ic("plus", 18)} યાદીમાં નથી એવું નવું ફોર્મ</a>`;
+  if (!all.length) return;
+  const draw = () => {
+    const q = $("#eq").value.trim().toLowerCase();
+    sessionStorage.setItem("gv_eflt", JSON.stringify({ ...flt, q }));
+    const rows = all.filter(d => flt.st === "a" || (flt.st === "d") === !!d.done)
+      .filter(d => !flt.b || d.b === flt.b)
+      .filter(d => !q || [d.n, d.mp, d.ms, d.done].some(x => String(x || "").toLowerCase().includes(q)));
+    $("#erows").innerHTML = rows.slice(0, 300).map(d => d.done
+      ? `<a class="srow" href="#/student/${encodeURIComponent(d.done)}"><span class="ph" style="background:#E6F4EA;color:#15803D">${ic("check", 20)}</span>
+          <span class="grow"><b>${esc(d.n)}</b><span class="sub">${esc(d.b)} • ${esc(d.done)}</span></span><span class="fee-small">ફોર્મ ${esc(d.f)} ✓</span></a>`
+      : `<a class="srow" href="#/admit/d:${encodeURIComponent(d.k)}"><span class="ph">${initial(d.n)}</span>
+          <span class="grow"><b>${esc(d.n)}</b><span class="sub">${esc(d.b)}${d.sc ? " • " + esc(d.sc) : ""} • ${esc(d.mp)}</span></span><span class="btn line" style="min-height:38px">ભરો</span></a>`).join("")
+      || `<p class="muted center">${flt.st === "p" && !q ? "બધાં ફોર્મ ચડી ગયાં 🎉" : "કોઈ નામ નથી."}</p>`;
+  };
+  $("#eq").oninput = draw;
+  $$("[data-est]", v).forEach(b => b.onclick = () => { flt.st = b.dataset.est; $$("[data-est]", v).forEach(x => x.classList.toggle("on", x === b)); draw(); });
+  $$("[data-eb]", v).forEach(b => b.onclick = () => { flt.b = b.dataset.eb; $$("[data-eb]", v).forEach(x => x.classList.toggle("on", x === b)); draw(); });
+  draw();
+}
+page("entry", entryPage);
+
+// CSV વાંચો (Excel માંથી "CSV" તરીકે સાચવેલી પણ ચાલે)
+function parseCSV(t) {
+  const rows = []; let row = [], cur = "", q = false;
+  t = t.replace(/^﻿/, "");
+  for (let i = 0; i < t.length; i++) {
+    const c = t[i];
+    if (q) { if (c === '"') { if (t[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += c; }
+    else if (c === '"') q = true;
+    else if (c === ",") { row.push(cur); cur = ""; }
+    else if (c === "\n" || c === "\r") { if (c === "\r" && t[i + 1] === "\n") i++; row.push(cur); rows.push(row); row = []; cur = ""; }
+    else cur += c;
+  }
+  if (cur || row.length) { row.push(cur); rows.push(row); }
+  return rows.filter(r => r.some(x => x.trim()));
+}
+const hkey = s => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return "k" + h.toString(36); };
+
+// ================= જૂનો ડેટા (Master / સંચાલક) =================
+page("old", async v => {
+  if (!isAdmin()) { location.hash = "#/home"; return; }
+  const [ds, rs] = await Promise.all([getDoc(draftRef()), getDoc(rosterRef())]);
+  const drafts = Object.values((ds.exists() && ds.data().list) || {});
+  const roster = Object.entries((rs.exists() && rs.data().list) || {}).map(([id, r]) => ({ id, ...r }));
+  const pend = roster.filter(r => r.l === 0 && r.x !== "cancelled");
+  const groups = Object.values(pend.reduce((a, r) => ((a[r.m] = a[r.m] || []).push(r), a), {}));
+  const legacyN = roster.filter(r => r.f).length;
+  v.innerHTML = `
+    <h1 class="page-title">જૂનો ડેટા ચડાવો</h1>
+    <div class="note old">${ic("info", 20)}<div>આ વર્ષનાં કાગળનાં <b>પ્રવેશ ફોર્મ</b> એ જ ફોર્મ નંબર અને તારીખ સાથે ચડાવો. નવો પ્રવેશ આપમેળે છેલ્લા નંબર પછીથી ચાલશે. (જૂની ફી પહોંચો: ભાગ 5 માં)</div></div>
+    <div class="card"><h2>1. Google Form ની યાદી</h2>
+      ${drafts.length ? `<p class="sub">કુલ ${drafts.length} • પૂરા ${drafts.filter(d => d.done).length} • બાકી ${drafts.filter(d => !d.done).length}</p>
+        <a class="btn primary big" href="#/entry">બાકી ફોર્મની યાદી ખોલો</a>` : `<p class="sub">હજુ ચડાવી નથી.</p>`}
+      <label class="btn line big" for="csvf">${ic("upload", 18)} ${drafts.length ? "નવી CSV ઉમેરો" : "CSV ફાઇલ પસંદ કરો"}</label>
+      <input id="csvf" type="file" accept=".csv,text/csv" class="sr">
+      <p class="hint">ફરી ચડાવો તો એ જ નામ બે વાર નહીં થાય; પૂરાં થયેલાં એમ જ રહેશે.</p></div>
+    <div class="card"><h2>2. કોણ ચડાવશે?</h2>
+      <p class="sub">ગોઠવણ → લોગિન → <b>ડેટા એન્ટ્રી</b> નું લોગિન બનાવો. એમાં ફક્ત બાકી ફોર્મ અને વિદ્યાર્થીઓની યાદી હશે. કામ પૂરું થાય એટલે લોગિન બંધ કરો.</p>
+      <a class="btn line" href="#/settings">લોગિન બનાવો</a></div>
+    <div class="card"><div class="row-between"><h2>3. વિદ્યાર્થી-વાલીનાં લોગિન</h2><span class="pill">${pend.length} બાકી</span></div>
+      <p class="sub">જૂનાં ફોર્મ (${legacyN}) ચડે ત્યારે લોગિન બનતાં નથી. બધાં ફોર્મ ચડી જાય પછી અહીંથી બનાવીને વાલીને WhatsApp કરો. એક જ નંબરવાળાં ભાઈ-બહેનનો એક જ વાલી બનશે.</p>
+      ${groups.length > 1 ? `<button type="button" class="btn line big" id="mkall">${ic("key", 18)} બધાંનાં એકસાથે બનાવો (${groups.length} વાલી)</button>` : ""}
+      <div id="lg" style="display:flex;flex-direction:column">${groups.map((g, i) => `<div class="srow" data-g="${i}">
+        <span class="grow"><b>${esc(g.map(r => r.n).join(", "))}</b><span class="sub">${esc(g.map(r => r.id).join(", "))} • ${esc(g[0].m)}</span></span>
+        <button type="button" class="btn line" style="min-height:40px" data-mk="${i}">બનાવો</button></div>`).join("") || `<p class="muted center">કોઈ બાકી નથી ✓</p>`}</div></div>`;
+
+  $("#csvf").onchange = async e => {
+    const f = e.target.files[0]; if (!f) return;
+    try {
+      const rows = parseCSV(await f.text()), H = rows.shift().map(h => h.trim());
+      const col = re => H.findIndex(h => re.test(h));
+      const ci = { n: col(/નામ/), s: col(/ધોરણ/), b: col(/બેચ/), sc: col(/શાળા/), mp: col(/વાલી/), ms: col(/વિદ્યાર્થીનો/), mw: col(/whatsapp/i) };
+      if (ci.n < 0 || ci.mp < 0) return toast("આ CSV માં 'નામ' અને 'વાલીનો મોબાઇલ' કૉલમ નથી.", true);
+      const old = (ds.exists() && ds.data().list) || {};
+      const list = {}; let add = 0, i = Object.keys(old).length;
+      rows.forEach(r => {
+        const g = k => ci[k] >= 0 ? String(r[ci[k]] || "").trim() : "";
+        const d = { n: g("n"), s: g("s"), b: g("b"), sc: g("sc"), mp: mob10(g("mp")), ms: mob10(g("ms")), mw: mob10(g("mw")) };
+        if (!d.n) return;
+        const k = hkey(norm(d.n) + d.mp);
+        if (old[k]) return;
+        list[k] = { ...d, i: ++i }; add++;
+      });
+      if (!add) return toast("નવું કોઈ નામ નથી (બધાં પહેલેથી છે).");
+      if (!confirm(`${add} નવાં નામ યાદીમાં ઉમેરવાં છે?`)) return;
+      await setDoc(draftRef(), { branchId: S.branchId, list }, { merge: true });
+      audit("drafts.import", S.branchId, `${add}`);
+      toast(`${add} નામ ઉમેરાયાં.`); route();
+    } catch (e2) { fail(e2, "CSV વંચાઈ નહીં."); }
+  };
+  const run = async (i, btn) => {
+    const row = $(`[data-g="${i}"]`);
+    if (btn) btn.disabled = true;
+    try {
+      const r = await makeLogins(groups[i]);
+      row.outerHTML = `<div class="sib" style="margin:6px 0"><b>${esc(r.kids.map(k => `${k.name} (${k.id})`).join(", "))}</b>
+        <span class="sub">${esc(r.kids.map(k => `${k.id}: ${k.pwd}`).join(" • "))} • વાલી ${esc(r.parent.id)}${r.parent.pwd ? ": " + esc(r.parent.pwd) : " (પહેલેથી)"}</span>
+        <a class="btn wa" target="_blank" rel="noopener" href="${waLink(r.wa, r.msg)}">${ic("wa", 18)} WhatsApp પર મોકલો</a></div>`;
+      return true;
+    } catch (e2) { if (btn) btn.disabled = false; fail(e2, "લોગિન ન બન્યું. ફરી પ્રયત્ન કરો."); return false; }
+  };
+  $$("[data-mk]", v).forEach(b => b.onclick = () => run(+b.dataset.mk, b));
+  $("#mkall", v)?.addEventListener("click", async e => {
+    if (!confirm(`${groups.length} વાલીનાં લોગિન બનાવવાં છે? (થોડી મિનિટ લાગશે, એપ ખુલ્લી રાખો)`)) return;
+    const b = e.currentTarget; b.disabled = true; let okAll = true;
+    for (let i = 0; i < groups.length; i++) {
+      if (!$(`[data-g="${i}"]`)) continue;
+      b.textContent = `બને છે… ${i + 1} / ${groups.length}`;
+      if (!(await run(i))) { okAll = false; break; }
+    }
+    b.disabled = false;
+    b.textContent = okAll ? "બની ગયાં ✓ હવે દરેકને WhatsApp કરો" : "અટક્યું. ફરી દબાવો — બાકીનાં જ બનશે";
+  });
+});
+
+// એક વાલી-નંબરનાં બધાં બાળકોનાં લોગિન + એક વાલી
+async function makeLogins(g) {
+  const m = g[0].m, kids = [];
+  const docs = await Promise.all(g.map(r => getDoc(doc(db, "students", r.id))));
+  for (const [i, r] of g.entries()) {
+    const s = docs[i].data() || {};
+    const u = await getDoc(doc(db, "users", r.id));
+    const c = u.exists()
+      ? await resetLogin(u.data())
+      : await createLogin({ role: "student", loginId: r.id, name: s.name || r.n, mobile: s.mobStudent || m, branchId: S.branchId, extra: { std: s.std || r.s, studentId: r.id } });
+    kids.push({ id: r.id, name: s.name || r.n, pwd: c.pwd, hasPhoto: s.hasPhoto, wa: s.mobWa });
+  }
+  const ids = kids.map(k => k.id), names = kids.map(k => k.name);
+  const pq = await getDocs(query(collection(db, "users"), where("branchId", "==", S.branchId), where("role", "==", "parent"), where("mobile", "==", m)));
+  let parent;
+  if (pq.docs[0]) {
+    const p = pq.docs[0].data();
+    await updateDoc(doc(db, "users", p.loginId), { childIds: arrayUnion(...ids), childNames: arrayUnion(...names) });
+    parent = { id: p.loginId, pwd: "" };
+  } else {
+    const c = await createLogin({ role: "parent", name: `${names[0]} ના વાલી`, mobile: m, branchId: S.branchId, extra: { childIds: ids, childNames: names } });
+    parent = { id: c.loginId, pwd: c.pwd };
+  }
+  const b = writeBatch(db);
+  kids.forEach(k => {
+    b.update(doc(db, "students", k.id), { parentId: parent.id, hasLogin: true });
+    b.update(doc(db, "users", k.id), { parentId: parent.id });
+    if (k.hasPhoto) b.update(doc(db, "photos", k.id), { parentId: parent.id });
+  });
+  b.set(rosterRef(), { list: Object.fromEntries(kids.map(k => [k.id, { l: 1 }])) }, { merge: true });
+  await b.commit();
+  audit("student.logins", parent.id, ids.join(","));
+  const msg = [
+    ACADEMY.name, `નમસ્તે, આપણી એકેડેમીની નવી એપ તૈયાર છે.`, `એપ: ${appUrl()}`, ``,
+    ...kids.flatMap(k => [`${k.name}`, `વિદ્યાર્થી ID: ${k.id}`, `કામચલાઉ પાસવર્ડ: ${k.pwd}`, ``]),
+    `વાલી ID: ${parent.id}`, parent.pwd ? `કામચલાઉ પાસવર્ડ: ${parent.pwd}` : `(પહેલેથી છે, એ જ પાસવર્ડ)`, ``,
+    `પહેલા લોગિન પર તમારો પોતાનો પાસવર્ડ રાખજો.`
+  ].join("\n");
+  return { kids, parent, msg, wa: kids[0].wa || m };
+}
+
+// ================= બેચ ગોઠવો: દરેક વિદ્યાર્થી સામે બેચનાં બટન, એક ટચમાં =================
+page("assign", async v => {
+  if (!canAdmit()) { location.hash = "#/students"; return; }
+  const [rs, bs] = await Promise.all([
+    getDoc(rosterRef()),
+    getDocs(query(collection(db, "batches"), where("branchId", "==", S.branchId), where("yearId", "==", S.year)))
+  ]);
+  const list = Object.entries((rs.exists() && rs.data().list) || {}).map(([id, r]) => ({ id, ...r })).filter(r => r.x !== "cancelled");
+  const batches = bs.docs.map(d => ({ id: d.id, ...d.data() })).filter(b => b.active !== false);
+  const st = JSON.parse(sessionStorage.getItem("gv_asg") || '{"s":"10","only":true}');
+  const stds = [...new Set(list.map(r => r.s))].sort((a, b) => a - b);
+  if (!stds.includes(st.s)) st.s = stds[0] || "";
+  v.innerHTML = `
+    <div class="row-between"><a class="btn line" href="#/students">${ic("back", 18)} યાદી</a></div>
+    <h1 class="page-title">બેચ ગોઠવો</h1>
+    <div class="hscroll" role="group" aria-label="ધોરણ">${stds.map(s => `<button type="button" class="chip ${st.s === s ? "on" : ""}" data-as="${s}">ધો. ${s}</button>`).join("")}</div>
+    <button type="button" class="switch ${st.only ? "on" : ""}" id="only" aria-pressed="${!!st.only}"><span class="grow" style="text-align:left"><b>ફક્ત બેચ વગરના</b></span><i></i></button>
+    <div class="card" style="gap:0" id="arows"></div>
+    <p class="hint">બટન દબાવો એટલે તરત સચવાય. ફરી દબાવો તો બેચ નીકળી જાય.</p>`;
+  const save = () => sessionStorage.setItem("gv_asg", JSON.stringify(st));
+  const draw = () => {
+    const bts = batches.filter(b => String(b.std || "") === st.s || new RegExp(`(^|\\D)${st.s}(\\D|$)`).test(b.name));
+    const rows = list.filter(r => r.s === st.s && (!st.only || !r.b)).sort((a, b) => String(a.n).localeCompare(String(b.n), "gu"));
+    $("#arows").innerHTML = !bts.length ? `<p class="muted center">ધો. ${esc(st.s)} ની બેચ નથી. પહેલાં "બેચ" માં બનાવો.</p>`
+      : rows.map(r => `<div class="srow" style="flex-wrap:wrap"><span class="grow" style="min-width:60%"><b>${esc(r.n)}</b><span class="sub">${esc(r.id)}${r.v ? " • " + esc(r.v) : ""}</span></span>
+          <span class="chips" style="width:100%">${bts.map(b => `<button type="button" class="chip ${r.b === b.id ? "on" : ""}" data-sid="${esc(r.id)}" data-bid="${b.id}">${esc(b.name)}</button>`).join("")}</span></div>`).join("")
+      || `<p class="muted center">${st.only ? "બધાની બેચ ગોઠવાઈ ગઈ ✓" : "કોઈ વિદ્યાર્થી નથી."}</p>`;
+    $$("[data-sid]", v).forEach(b => b.onclick = async () => {
+      const r = list.find(x => x.id === b.dataset.sid), bt = batches.find(x => x.id === b.dataset.bid);
+      const off = r.b === bt.id, nb = off ? "" : bt.id, nn = off ? "" : bt.name;
+      const row = b.closest(".chips"); $$(".chip", row).forEach(c => c.classList.toggle("on", c === b && !off));
+      try {
+        const w = writeBatch(db);
+        w.update(doc(db, "students", r.id), { batchId: nb, batchName: nn, updatedAt: serverTimestamp() });
+        w.set(rosterRef(), { list: { [r.id]: { b: nb, bn: nn } } }, { merge: true });
+        await w.commit();
+        r.b = nb; r.bn = nn;
+        if (st.only && nb) setTimeout(() => { const el = b.closest(".srow"); if (el) el.remove(); }, 350);
+      } catch (e) { fail(e, "બેચ સચવાઈ નહીં."); draw(); }
+    });
+  };
+  $$("[data-as]", v).forEach(b => b.onclick = () => { st.s = b.dataset.as; save(); $$("[data-as]", v).forEach(x => x.classList.toggle("on", x === b)); draw(); });
+  $("#only").onclick = e => { st.only = !st.only; save(); e.currentTarget.classList.toggle("on", st.only); draw(); };
+  draw();
+});

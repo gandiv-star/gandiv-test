@@ -43,12 +43,14 @@ page("home", async v => {
         <a class="tile" href="#/admit">${ic("plus", 26)}<span>નવો પ્રવેશ</span></a>
         <a class="tile" href="#/students">${ic("users", 26)}<span>વિદ્યાર્થીઓ</span></a>
         <a class="tile" href="#/batches">${ic("batch", 26)}<span>બેચ</span></a>
+        <a class="tile" href="#/old">${ic("dl", 26)}<span>જૂનો ડેટા</span></a>
         <a class="tile" href="#/settings">${ic("gear", 26)}<span>ગોઠવણ અને લોગિન</span></a>
       </div>
       <p class="muted center">ડેશબોર્ડ, ફી અને હાજરી આગળના ભાગમાં ઉમેરાશે.</p>`;
     return;
   }
   if (r === "student" || r === "parent") return (await import("./students.js")).familyHome(v);
+  if (r === "dataEntry") return (await import("./students.js")).entryPage(v);
   v.innerHTML = `<div class="card hello"><h1>નમસ્તે, ${name}</h1><p>${esc(ROLES[r]?.label || "")} • ${esc(branchName(S.branchId))}</p></div>
     <p class="muted center">તમારું હોમ આગળના ભાગમાં તૈયાર થશે.</p>`;
 });
@@ -74,7 +76,7 @@ async function branchesTab(el) {
     try {
       const [bs, us] = await Promise.all([
         getDocs(query(collection(db, "batches"), where("branchId", "==", b.id), where("yearId", "==", S.year))),
-        getDocs(query(collection(db, "users"), where("branchId", "==", b.id), where("role", "in", ["branchAdmin", "teacher", "receptionist", "accountant"])))
+        getDocs(query(collection(db, "users"), where("branchId", "==", b.id), where("role", "in", ["branchAdmin", "teacher", "receptionist", "accountant", "dataEntry"])))
       ]);
       counts[b.id] = { batches: bs.docs.filter(d => d.data().active !== false).length, staff: us.docs.filter(d => d.data().active !== false && !["student", "parent"].includes(d.data().role)).length };
     } catch { counts[b.id] = { batches: "-", staff: "-" }; }
@@ -147,7 +149,7 @@ async function yearTab(el) {
 // ---------- લોગિન ----------
 async function loginsTab(el) {
   if (!S.branchId) { el.innerHTML = `<div class="empty">પહેલાં શાખા ઉમેરો.</div>`; return; }
-  const qs = await getDocs(query(collection(db, "users"), where("branchId", "==", S.branchId), where("role", "in", ["branchAdmin", "teacher", "receptionist", "accountant"])));
+  const qs = await getDocs(query(collection(db, "users"), where("branchId", "==", S.branchId), where("role", "in", ["branchAdmin", "teacher", "receptionist", "accountant", "dataEntry"])));
   const users = qs.docs.map(d => d.data()).filter(u => !["student", "parent"].includes(u.role))
     .sort((a, b) => (a.active === false) - (b.active === false) || String(a.loginId).localeCompare(String(b.loginId), "en", { numeric: true }));
   const roles = CAN_CREATE[S.me.role] || [];
@@ -216,15 +218,18 @@ function userMenu(u) {
 }
 
 // નવો લોગિન: ID ક્રમ → Firebase ખાતું → authmap, users, loginIndex
-export async function createLogin({ role, name, mobile = "", branchId, extra = {} }) {
-  const prefix = ID_PREFIX[role];
-  const loginId = await runTransaction(db, async tx => {
+// નવો ID ક્રમ (T1, S1, G101, P1 ...)
+export function reserveId(prefix) {
+  return runTransaction(db, async tx => {
     const ref = doc(db, "counters", "loginIds");
     const snap = await tx.get(ref);
     const n = ((snap.exists() && snap.data()[prefix]) || (prefix === "G" ? 100 : 0)) + 1;
     tx.set(ref, { [prefix]: n }, { merge: true });
     return prefix + n;
   });
+}
+export async function createLogin({ role, name, mobile = "", branchId, extra = {}, loginId: fixedId = "" }) {
+  const loginId = fixedId || await reserveId(ID_PREFIX[role]);
   const pwd = genPwd(), email = idToEmail(loginId);
   const sec = secondaryAuth();
   const cred = await createUserWithEmailAndPassword(sec, email, pwd);

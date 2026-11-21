@@ -71,18 +71,21 @@ export const ROLES = {
   receptionist: { label: "Receptionist", color: "#14225A" },
   accountant:   { label: "Accountant",   color: "#0F766E" },
   teacher:      { label: "શિક્ષક",        color: "#6D28D9" },
+  dataEntry:    { label: "ડેટા એન્ટ્રી",    color: "#0E7490" },
   student:      { label: "વિદ્યાર્થી",     color: "#C2410C" },
   parent:       { label: "વાલી",          color: "#15803D" }
 };
 export const isMaster = () => S.me?.role === "master";
 export const isAdmin = () => ["master", "branchAdmin"].includes(S.me?.role);
+// પ્રવેશ ચડાવી શકે: Master, સંચાલક, ડેટા એન્ટ્રી
+export const canAdmit = () => isAdmin() || S.me?.role === "dataEntry";
 // કયો રોલ કયા રોલનું લોગિન બનાવી શકે (ભાગ 2)
 export const CAN_CREATE = {
-  master: ["branchAdmin", "teacher", "receptionist", "accountant"],
-  branchAdmin: ["teacher", "receptionist", "accountant"]
+  master: ["branchAdmin", "teacher", "receptionist", "accountant", "dataEntry"],
+  branchAdmin: ["teacher", "receptionist", "accountant", "dataEntry"]
 };
 // લોગિન ID ની શરૂઆત: T1, S1 ...
-export const ID_PREFIX = { branchAdmin: "S", receptionist: "S", accountant: "S", teacher: "T", student: "G", parent: "P" };
+export const ID_PREFIX = { dataEntry: "S", branchAdmin: "S", receptionist: "S", accountant: "S", teacher: "T", student: "G", parent: "P" };
 
 // ---------- મેનુ ----------
 const NAV = {
@@ -90,12 +93,13 @@ const NAV = {
   staff: [["home", "હોમ", "home"]],
   teacher: [["home", "આજે", "home"]],
   student: [["home", "હોમ", "home"]],
-  parent: [["home", "હોમ", "home"]]
+  parent: [["home", "હોમ", "home"]],
+  dataEntry: [["home", "બાકી ફોર્મ", "home"], ["students", "વિદ્યાર્થી", "users"]]
 };
 // મેનુમાં ન દેખાય પણ ખૂલી શકે એવાં પાનાં
-const EXTRA = { admin: ["admit", "student", "viewas"] };
-const extraFor = r => (["master", "branchAdmin"].includes(r) ? EXTRA.admin : []);
-const navFor = r => (["master", "branchAdmin"].includes(r) ? NAV.admin : r === "teacher" ? NAV.teacher : r === "student" ? NAV.student : r === "parent" ? NAV.parent : NAV.staff);
+const EXTRA = { admin: ["admit", "student", "viewas", "old", "entry", "assign"], dataEntry: ["admit", "student", "viewas", "entry", "assign"] };
+const extraFor = r => (["master", "branchAdmin"].includes(r) ? EXTRA.admin : EXTRA[r] || []);
+const navFor = r => (["master", "branchAdmin"].includes(r) ? NAV.admin : r === "dataEntry" ? NAV.dataEntry : r === "teacher" ? NAV.teacher : r === "student" ? NAV.student : r === "parent" ? NAV.parent : NAV.staff);
 
 export const ICON = {
   home: '<path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/>',
@@ -120,6 +124,7 @@ export const ICON = {
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 8h0M12 11v6"/>',
   link: '<path d="M10 14a4 4 0 0 0 6 0l3-3a4 4 0 0 0-6-6l-1 1M14 10a4 4 0 0 0-6 0l-3 3a4 4 0 0 0 6 6l1-1"/>',
   dl: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
+  upload: '<path d="M12 20V9M7 14l5-5 5 5M5 4h14"/>',
   snd: '<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/>',
   mute: '<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="m17 9 5 6M22 9l-5 6"/>'
 };

@@ -121,7 +121,7 @@ async function fetchFresh(user) {
     branches: br.filter(d => d.exists()).map(d => ({ id: d.id, ...d.data() }))
   };
 }
-const sig = c => JSON.stringify([c.me, c.profile?.name, c.profile?.mustChangePassword, c.year, (c.branches || []).map(b => [b.id, b.name, b.active, b.order])]);
+const sig = c => JSON.stringify([c.me, c.profile?.name, c.profile?.mustChangePassword, c.profile?.childIds, c.year, (c.branches || []).map(b => [b.id, b.name, b.active, b.order])]);
 const errMsg = e => (e?.code?.includes("permission") ? "આ ખાતાને પરવાનગી નથી. સંચાલકનો સંપર્ક કરો." : "માહિતી લોડ ન થઈ. નેટ ચકાસીને ફરી પ્રયત્ન કરો.");
 
 export function boot() {
