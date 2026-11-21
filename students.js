@@ -8,11 +8,12 @@ import {
   runTransaction, serverTimestamp, writeBatch, arrayUnion
 } from "./fb.js";
 import {
-  $, $$, esc, S, isAdmin, canAdmit, toast, fail, busy, audit, page, ic, route, renderShell, buzz, say,
+  $, $$, esc, S, isAdmin, canAdmit, toast, fail, busy, audit, page, ic, route, renderShell, buzz, say, SKEL,
   money, fmtD, ymd, waLink, appUrl, modal, closeModal
 } from "./core.js";
 import { ACADEMY } from "./config.js";
 import { createLogin, resetLogin, showCreds, reserveId } from "./admin.js";
+import { feeTab, loadSched, dueLine, isFeeStaff } from "./fees.js";
 
 const STDS = ["7", "8", "9", "10", "11", "12"];
 const COURSES = ["NEET", "GUJCET", "JEE", "NMMS", "CET"];
@@ -56,7 +57,7 @@ function feeTag(pay, paid) {
 const rosterEntry = s => ({
   n: s.name, s: s.std, b: s.batchId || "", bn: s.batchName || "", v: s.village || "",
   m: s.mobParent || "", p: num(s.fee?.pay), pd: num(s.fee?.paid), f: s.formNo || "", x: s.status || "active",
-  l: s.hasLogin === false ? 0 : 1
+  l: s.hasLogin === false ? 0 : 1, pl: s.fee?.plan || "વાર્ષિક"
 });
 
 // ================= યાદી =================
@@ -598,13 +599,14 @@ page("student", async v => {
       : `<p class="sub">વિદ્યાર્થી ID: <b>${esc(id)}</b>${u?.active === false ? " • બંધ" : ""} • વાલી ID: <b>${esc(s.parentId)}</b></p>`}
       <div class="grid2">${s.hasLogin === false ? "" : `<button type="button" class="btn line" id="rp">${ic("key", 18)} પાસવર્ડ રીસેટ</button>`}
       <button type="button" class="btn line ${off ? "" : "danger"}" id="cx">${off ? "પ્રવેશ ફરી ચાલુ" : "પ્રવેશ રદ / બંધ"}</button></div></div>` : ""}`
-    : tab === "fee" ? `<div class="card"><h2>ફી</h2>${kv([
+    : tab === "fee" ? `<div id="feetab" class="stack">${SKEL}</div>
+      <div class="card"><h2>ફીની વિગત (પ્રવેશ ફોર્મ મુજબ)</h2>${kv([
       ["પ્રવેશ ફી / સ્ટેશનરી", money(s.fee?.adm)], ["અભ્યાસ ફી", money(s.fee?.tui)], ["ટોટલ ફી", money(s.fee?.total)],
-      ["સ્કોલરશિપ", money(s.fee?.sch)], ["ચૂકવવાની થતી", `<span class="big-num">${money(s.fee?.pay)}</span>`], ["રીત", esc(s.fee?.plan)],
-      ["ભરેલી", money(s.fee?.paid)], ["બાકી", money(num(s.fee?.pay) - num(s.fee?.paid))]
-    ])}<p class="hint">ફી લેવી અને પહોંચ આગળના ભાગ (ભાગ 5) માં ચાલુ થશે.</p></div>`
+      ["સ્કોલરશિપ", money(s.fee?.sch)], ["ચૂકવવાની થતી", money(s.fee?.pay)], ["રીત", esc(s.fee?.plan)]
+    ])}</div>`
     : `<div class="empty">${tab === "att" ? "હાજરી ભાગ 6 માં ચાલુ થશે." : "ગુણ આગળના ભાગમાં ચાલુ થશે."}</div>`}`;
   $$("[data-ft]", v).forEach(b => b.onclick = () => { sessionStorage.setItem("gv_ftab", b.dataset.ft); route(); });
+  if ($("#feetab", v)) feeTab($("#feetab", v), id, s).catch(e => { $("#feetab", v).innerHTML = `<div class="empty">ફી ખૂલી નહીં.</div>`; console.error(e); });
   $("#pdf").onclick = e => { e.preventDefault(); printForm({ ...s, loginId: id }, photo); };
   $("#rp", v)?.addEventListener("click", () => {
     const d = modal("કોનો પાસવર્ડ રીસેટ કરવો છે?", `<div class="stack">
@@ -638,8 +640,7 @@ page("student", async v => {
 });
 
 // ================= વિદ્યાર્થીનું હોમ (વિદ્યાર્થી પોતે અને "વિદ્યાર્થી તરીકે જુઓ") =================
-export function studentHomeHtml(s, photo = "") {
-  const due = num(s.fee?.pay) - num(s.fee?.paid);
+export function studentHomeHtml(s, photo = "", sched = null, live = false) {
   return `
     <div class="card hello"><div class="prof"><span class="ph lg">${photo ? `<img src="${photo}" alt="${esc(s.name)} નો ફોટો">` : initial(s.name)}</span>
       <div class="grow"><h1>નમસ્તે, ${esc(String(s.name || "").split(" ")[1] || s.name)} 👋</h1>
@@ -650,13 +651,14 @@ export function studentHomeHtml(s, photo = "") {
       <a class="tile soon">${ic("edit", 28)}<span>ટેસ્ટ, ગુણ</span></a>
       <a class="tile soon">${ic("info", 28)}<span>સૂચનાઓ</span></a>
     </div>
-    ${num(s.fee?.pay) ? `<span class="fee-small">${due > 0 ? `ફી: ${money(due)} બાકી • વાલીને યાદ કરાવો` : "ફી: ભરાઈ ગઈ ✓"}</span>` : ""}
+    ${dueLine(s.fee, sched, "student")}
+    ${live && num(s.fee?.pay) ? `<a class="link-btn" href="#/myfees">${ic("receipt", 16)} મારી ફી અને પહોંચો</a>` : ""}
     <p class="muted center">હાજરી, ટેસ્ટ અને સૂચનાઓ આગળના ભાગમાં ઉમેરાશે.</p>`;
 }
 
 page("viewas", async v => {
   const id = hashArg();
-  const [ss, ps] = await Promise.all([getDoc(doc(db, "students", id)), getDoc(doc(db, "photos", id)).catch(() => null)]);
+  const [ss, ps, sched] = await Promise.all([getDoc(doc(db, "students", id)), getDoc(doc(db, "photos", id)).catch(() => null), loadSched()]);
   if (!ss.exists()) { v.innerHTML = `<div class="empty">વિદ્યાર્થી મળ્યો નહીં.</div>`; return; }
   const s = ss.data(), photo = ps?.exists() ? ps.data().data : "";
   document.documentElement.style.setProperty("--role", "#C2410C");
@@ -664,7 +666,7 @@ page("viewas", async v => {
     <div class="viewas" role="status">${ic("eye", 20)}<b>તમે ${esc(id)} ની એપ જુઓ છો (ફક્ત જોવા માટે)</b><button type="button" id="vx">બંધ કરો</button></div>
     <div class="main">
       <header class="top"><img src="logo.png" alt="ગાંડિવ એકેડેમીનો લોગો" class="top-logo"><div class="top-who"><b>${esc(s.name)}</b><span>${cls(s.std, s.batchName)} • ${esc(branchName(s.branchId))}</span></div><span class="role-chip">વિદ્યાર્થી</span></header>
-      <main class="view viewonly" inert>${studentHomeHtml(s, photo)}
+      <main class="view viewonly" inert>${studentHomeHtml(s, photo, sched)}
         <div class="note old">${ic("info", 20)}<div>આ સ્ક્રીનમાં કોઈ બટન કામ નહીં કરે, બદલાવ સચવાશે નહીં. વિદ્યાર્થીને શું દેખાય છે તે ચકાસવા માટે જ.</div></div></main>
     </div>`;
   $("#vx").onclick = () => { location.hash = `#/student/${encodeURIComponent(id)}`; renderShell(); };
@@ -723,12 +725,13 @@ export function printForm(s, photo) {
 // ================= વિદ્યાર્થી / વાલીનું હોમ (ભાગ 7 માં વધુ) =================
 export async function familyHome(v) {
   if (S.me.role === "student") {
-    const [ss, ps] = await Promise.all([getDoc(doc(db, "students", S.me.loginId)), getDoc(doc(db, "photos", S.me.loginId)).catch(() => null)]);
-    v.innerHTML = ss.exists() ? studentHomeHtml(ss.data(), ps?.exists() ? ps.data().data : "") : `<div class="card hello"><h1>નમસ્તે, ${esc(S.profile?.name || "")}</h1></div>`;
+    const [ss, ps, sched] = await Promise.all([getDoc(doc(db, "students", S.me.loginId)), getDoc(doc(db, "photos", S.me.loginId)).catch(() => null), loadSched()]);
+    v.innerHTML = ss.exists() ? studentHomeHtml(ss.data(), ps?.exists() ? ps.data().data : "", sched, true) : `<div class="card hello"><h1>નમસ્તે, ${esc(S.profile?.name || "")}</h1></div>`;
     return;
   }
   // વાલી: બધાં બાળકો
   const ids = S.profile?.childIds || [];
+  const sched = await loadSched();
   const kids = (await Promise.all(ids.map(async id => {
     const [x, p] = await Promise.all([getDoc(doc(db, "students", id)).catch(() => null), getDoc(doc(db, "photos", id)).catch(() => null)]);
     return x?.exists() ? { id, ...x.data(), photo: p?.exists() ? p.data().data : "" } : null;
@@ -736,10 +739,9 @@ export async function familyHome(v) {
   v.innerHTML = `
     <div class="card hello"><h1>નમસ્તે 🙏</h1><p>${esc(branchName(S.branchId))} • ${kids.length > 1 ? `${kids.length} બાળકો` : "વાલી"}</p></div>
     ${kids.map(k => {
-      const due = num(k.fee?.pay) - num(k.fee?.paid);
       return `<div class="card"><div class="prof"><span class="ph lg">${k.photo ? `<img src="${k.photo}" alt="${esc(k.name)} નો ફોટો">` : initial(k.name)}</span>
         <div class="grow"><b>${esc(k.name)}</b><span class="sub">${esc(k.id)} • ${cls(k.std, k.batchName)}</span></div></div>
-        ${num(k.fee?.pay) ? `<span class="fee-small">${due > 0 ? `ફી: ${money(due)} બાકી` : "ફી: ભરાઈ ગઈ ✓"}</span>` : ""}</div>`;
+        ${dueLine(k.fee, sched)}${num(k.fee?.pay) ? ` <a class="link-btn" href="#/myfees">પહોંચો જુઓ</a>` : ""}</div>`;
     }).join("") || `<div class="empty">હજુ કોઈ બાળક જોડાયેલું નથી.</div>`}
     <p class="muted center">હાજરી, ગેરહાજરીની જાણ અને પરિણામ આગળના ભાગમાં ઉમેરાશે.</p>`;
 }

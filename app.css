@@ -231,7 +231,44 @@ a.srow { color: var(--text); text-decoration: none; }
   .pf-office { display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px; }
   .pf-office td:nth-child(2) { width: 24px; text-align: center; } .pf-office td:last-child { text-align: right; width: 34%; }
   .pf-note { border: 1px solid #000; border-radius: 8px; padding: 8px; margin: 8px 0; }
+  .pr-rc .rc { box-shadow: none; max-width: 100%; border: 1px solid #999; font-size: 12pt; }
+  .pr-rc .rc-h, .pr-rc .rc-tag, .pr-rc .rc-con, .pr-rc .rc-tb th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+
+.view[data-stale] { pointer-events: none; }
+
+/* ---------- ભાગ 5: ફી પહોંચ (કાગળની પહોંચ જેવી) ---------- */
+.due-over { color: #B91C1C; }
+.bar { height: 8px; background: #E8ECF6; border-radius: 4px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: #16A34A; }
+.rc { background: #fff; border-radius: 14px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.12); font-size: 13px; color: #111; max-width: 560px; }
+.rc-h { background: linear-gradient(120deg, #DDE8F6, #F5F8FC 60%, #D7E3F3); padding: 10px 12px 8px; }
+.rc-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.rc-tag { display: inline-block; background: #C62828; color: #fff; font-weight: 700; font-size: 10px; padding: 2px 8px; border-radius: 3px; }
+.rc-trust { font-size: 11px; color: #8E1B1B; }
+.rc-con { background: #14225A; color: #fff; font-size: 10px; padding: 4px 7px; border-radius: 6px; line-height: 1.4; }
+.rc-t { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.rc-t img { width: 46px; height: 46px; border-radius: 50%; }
+.rc-t b { font-size: 32px; color: #8E1B1B; line-height: 1.1; }
+.rc-tl { font-size: 11px; color: #14225A; font-weight: 700; text-align: right; }
+.rc-strip { margin-top: 6px; border: 1.5px solid #14225A; border-radius: 14px; padding: 3px 8px; font-size: 9.5px; color: #8E1B1B; font-weight: 700; text-align: center; background: #fff; }
+.rc-ad { text-align: center; font-size: 10.5px; margin-top: 4px; font-weight: 600; }
+.rc-b { padding: 10px 12px; border: 1.5px solid #222; margin: 8px; border-radius: 6px; }
+.rc-l { display: flex; gap: 6px; margin: 4px 0; }
+.rc-l span { white-space: nowrap; font-weight: 700; }
+.rc-l i { flex: 1 1 0; min-width: 0; border-bottom: 1px solid #444; font-style: normal; font-weight: 600; color: #14225A; }
+.rc-l i.rc-no { flex: 0 0 48px; }
+.rc-tb { width: 100%; border-collapse: collapse; margin-top: 6px; }
+.rc-tb th { background: #F1EFC9; padding: 4px; font-size: 12px; }
+.rc-tb td { border-top: 1px solid #222; padding: 5px; vertical-align: top; line-height: 1.6; }
+.rc-tb td:first-child { width: 22px; border-right: 1px solid #222; }
+.rc-tb td:last-child { width: 92px; white-space: nowrap; border-left: 1px solid #222; text-align: right; font-weight: 700; }
+.rc-tb u { text-decoration: none; border-bottom: 1px dotted #333; font-weight: 700; color: #14225A; padding: 0 2px; }
+.rc-oval { border: 1.5px solid #C62828; border-radius: 50%; padding: 1px 8px; white-space: nowrap; }
+.rc-red { color: #C62828; }
+.rc-next { margin: 8px 0 0; font-size: 12px; font-weight: 600; color: #14225A; }
+.rc-s { display: flex; justify-content: space-between; gap: 8px; margin-top: 14px; font-size: 11px; flex-wrap: wrap; }
 
 /* ---------- modal અને toast ---------- */
 dialog#modal { border: 0; padding: 0; border-radius: 20px; width: min(520px, calc(100vw - 24px)); max-height: calc(100vh - 32px); background: var(--card); }

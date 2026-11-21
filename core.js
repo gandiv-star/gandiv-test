@@ -47,7 +47,7 @@ function snapNow() {
     localStorage.setItem("gv_snap", app.innerHTML);
     localStorage.setItem("gv_snap_role", getComputedStyle(document.documentElement).getPropertyValue("--role").trim());
     const v = $("#view");
-    if (v && S.me && !v.querySelector(".skel")) localStorage.setItem(PK(), v.innerHTML);
+    if (v && S.me && !v.querySelector(".skel") && !v.dataset.stale) localStorage.setItem(PK(), v.innerHTML);
   } catch {}
 }
 export function watchSnap() {
@@ -89,16 +89,22 @@ export const ID_PREFIX = { dataEntry: "S", branchAdmin: "S", receptionist: "S", 
 
 // ---------- મેનુ ----------
 const NAV = {
-  admin: [["home", "હોમ", "home"], ["students", "વિદ્યાર્થી", "users"], ["batches", "બેચ", "batch"], ["settings", "ગોઠવણ", "gear"]],
-  staff: [["home", "હોમ", "home"]],
+  admin: [["home", "હોમ", "home"], ["students", "વિદ્યાર્થી", "users"], ["fees", "ફી", "rupee"], ["batches", "બેચ", "batch"], ["settings", "ગોઠવણ", "gear"]],
+  staff: [["home", "હોમ", "home"], ["fees", "ફી", "rupee"], ["students", "વિદ્યાર્થી", "users"]],
   teacher: [["home", "આજે", "home"]],
   student: [["home", "હોમ", "home"]],
   parent: [["home", "હોમ", "home"]],
   dataEntry: [["home", "બાકી ફોર્મ", "home"], ["students", "વિદ્યાર્થી", "users"]]
 };
 // મેનુમાં ન દેખાય પણ ખૂલી શકે એવાં પાનાં
-const EXTRA = { admin: ["admit", "student", "viewas", "old", "entry", "assign"], dataEntry: ["admit", "student", "viewas", "entry", "assign"] };
-const extraFor = r => (["master", "branchAdmin"].includes(r) ? EXTRA.admin : EXTRA[r] || []);
+const EXTRA = {
+  admin: ["admit", "student", "viewas", "old", "entry", "assign", "pay", "oldpay", "receipt", "sched"],
+  dataEntry: ["admit", "student", "viewas", "entry", "assign", "fees", "pay", "oldpay", "receipt"],
+  staff: ["student", "pay", "oldpay", "receipt"],
+  family: ["myfees", "receipt"]
+};
+const extraFor = r => (["master", "branchAdmin"].includes(r) ? EXTRA.admin : ["accountant", "receptionist"].includes(r) ? EXTRA.staff
+  : ["student", "parent"].includes(r) ? EXTRA.family : EXTRA[r] || []);
 const navFor = r => (["master", "branchAdmin"].includes(r) ? NAV.admin : r === "dataEntry" ? NAV.dataEntry : r === "teacher" ? NAV.teacher : r === "student" ? NAV.student : r === "parent" ? NAV.parent : NAV.staff);
 
 export const ICON = {
@@ -124,6 +130,7 @@ export const ICON = {
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 8h0M12 11v6"/>',
   link: '<path d="M10 14a4 4 0 0 0 6 0l3-3a4 4 0 0 0-6-6l-1 1M14 10a4 4 0 0 0-6 0l-3 3a4 4 0 0 0 6 6l1-1"/>',
   dl: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
+  receipt: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>',
   upload: '<path d="M12 20V9M7 14l5-5 5 5M5 4h14"/>',
   snd: '<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/>',
   mute: '<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="m17 9 5 6M22 9l-5 6"/>'
@@ -291,9 +298,15 @@ export function route() {
   S.page = pages[name] && allowed.includes(name) ? name : "home";
   $$("[data-nav]").forEach(a => a.classList.toggle("on", a.dataset.nav === S.page));
   // પાનાનો છેલ્લો ફોટો તરત બતાવો, નવી માહિતી આવે એટલે બદલાઈ જાય
-  let last = null; try { last = localStorage.getItem(PK()); } catch {}
+  // ફોર્મવાળાં પાનાંનો જૂનો ફોટો નહીં (ભૂલથી જૂના ફોટામાં લખાઈ ન જાય)
+  const NOSNAP = ["admit", "pay", "oldpay", "sched", "assign", "receipt"];
+  let last = null; try { if (!NOSNAP.includes(S.page)) last = localStorage.getItem(PK()); } catch {}
   v.innerHTML = last || SKEL;
-  Promise.resolve(pages[S.page](v)).catch(e => {
+  // જૂનો ફોટો દેખાય ત્યાં સુધી બટન દબાય નહીં
+  if (last) v.dataset.stale = "1"; else delete v.dataset.stale;
+  const done = () => delete v.dataset.stale;
+  Promise.resolve(pages[S.page](v)).then(done, e => {
+    done();
     console.error(e);
     const perm = /permission/i.test(e?.code || e?.message || "");
     v.innerHTML = `<div class="empty">${perm
