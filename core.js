@@ -293,6 +293,12 @@ export function route() {
   // પાનાનો છેલ્લો ફોટો તરત બતાવો, નવી માહિતી આવે એટલે બદલાઈ જાય
   let last = null; try { last = localStorage.getItem(PK()); } catch {}
   v.innerHTML = last || SKEL;
-  Promise.resolve(pages[S.page](v)).catch(e => { fail(e); v.innerHTML = `<div class="empty">આ પાનું ખૂલ્યું નહીં. નેટ ચકાસીને ફરી ખોલો.</div>`; });
+  Promise.resolve(pages[S.page](v)).catch(e => {
+    console.error(e);
+    const perm = /permission/i.test(e?.code || e?.message || "");
+    v.innerHTML = `<div class="empty">${perm
+      ? "આ પાનું ખોલવાની પરવાનગી મળી નહીં.<br><small>Master: Firebase → Firestore → Rules માં છેલ્લા નિયમો Publish કર્યા છે?</small>"
+      : "આ પાનું ખૂલ્યું નહીં. નેટ ચકાસીને ફરી ખોલો."}<br><small class="muted">(${esc(e?.code || e?.message || "ભૂલ")})</small></div>`;
+  });
   window.scrollTo(0, 0);
 }
