@@ -239,7 +239,9 @@ a.srow { color: var(--text); text-decoration: none; }
 .view[data-stale] { pointer-events: none; }
 
 /* ---------- ભાગ 5: ફી પહોંચ (કાગળની પહોંચ જેવી) ---------- */
-.due-over { color: #B91C1C; }
+.due-over { color: #B91C1C; font-weight: 600; }
+.fee-small.due-line { white-space: normal; line-height: 1.5; display: block; }
+.rc-next.rc-over { color: #B91C1C; }
 .bar { height: 8px; background: #E8ECF6; border-radius: 4px; overflow: hidden; }
 .bar i { display: block; height: 100%; background: #16A34A; }
 .rc { background: #fff; border-radius: 14px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.12); font-size: 13px; color: #111; max-width: 560px; }

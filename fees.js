@@ -75,13 +75,13 @@ export function dueInfo(fee, sched) {
 export function dueLine(fee, sched, who = "") {
   if (!num(fee?.pay)) return "";
   const i = dueInfo(fee, sched);
-  if (i.done) return `<span class="fee-small">ફી: ભરાઈ ગઈ ✓</span>`;
-  if (i.over) return `<span class="fee-small due-over">ફી: ${money(i.over.amt)} ભરવાની મુદત ${fmtD(i.over.d)} વીતી ગઈ છે • કુલ બાકી ${money(i.bal)}</span>`;
-  return `<span class="fee-small">ફી: ${money(i.bal)} બાકી${i.next ? ` • <b>${fmtD(i.next.d)} સુધીમાં ${money(i.next.amt)}</b>` : ""}${who === "student" ? " • વાલીને યાદ કરાવો" : ""}</span>`;
+  if (i.done) return `<span class="fee-small due-line">ફી: ભરાઈ ગઈ ✓</span>`;
+  if (i.over) return `<span class="fee-small due-line due-over">ફી: ${money(i.over.amt)} ભરવાની મુદત ${fmtD(i.over.d)} વીતી ગઈ છે • કુલ બાકી ${money(i.bal)}</span>`;
+  return `<span class="fee-small due-line">ફી: ${money(i.bal)} બાકી${i.next ? ` • <b>${fmtD(i.next.d)} સુધીમાં ${money(i.next.amt)}</b>` : ""}${who === "student" ? " • વાલીને યાદ કરાવો" : ""}</span>`;
 }
 
 // ---------- પહોંચ (કાગળની પહોંચ જેવી) ----------
-export function receiptHtml(r, nextTxt = "") {
+export function receiptHtml(r, nextTxt = "", over = false) {
   const br = branchOf(r.branchId);
   const u = x => `<u>${esc(x)}</u>`;
   return `<div class="rc" id="rcpt">
@@ -103,7 +103,7 @@ export function receiptHtml(r, nextTxt = "") {
         <tr><td>૨.</td><td>${u(r.plan || "વાર્ષિક")} ફી રૂ. ${u(money(r.total).replace("₹ ", ""))} માંથી − રૂ. ${u(money(r.paidAfter).replace("₹ ", ""))}
           <span class="rc-oval">= ${u(money(r.balance).replace("₹ ", ""))} બાકી.</span></td><td></td></tr>
         <tr><td colspan="2"><b class="rc-red">શબ્દોમાં:</b> ${esc(words(r.amount))}</td><td>કુલ ${money(r.amount)}</td></tr></table>
-      ${nextTxt ? `<p class="rc-next">${nextTxt}</p>` : ""}
+      ${nextTxt ? `<p class="rc-next${over ? " rc-over" : ""}">${nextTxt}</p>` : ""}
       ${r.note ? `<p class="rc-next">Note: ${esc(r.note)}</p>` : ""}
       <div class="rc-s"><span>જમા કરાવનાર: <b>${esc(r.payer || "")}</b></span><span>જમા કરનાર: <b>${esc(r.byName || "")}</b> ✓</span></div>
     </div></div>`;
@@ -263,24 +263,25 @@ page("receipt", async v => {
   const rs = await getDoc(doc(db, "receipts", rid));
   if (!rs.exists()) { v.innerHTML = `<div class="empty">આ પહોંચ મળી નહીં (કદાચ ભૂંસાઈ ગઈ છે).</div><a class="btn line" href="#/home">હોમ</a>`; return; }
   const r = rs.data();
-  let nextTxt = "";
+  let nextTxt = "", over = false;
   try {
     const [ss, sched] = await Promise.all([getDoc(doc(db, "students", r.studentId)), loadSched(r.branchId)]);
     const i = dueInfo(ss.data()?.fee, sched);
+    over = !!i.over;
     nextTxt = i.done ? "ફી પૂરી ભરાઈ ગઈ છે. આભાર 🙏" : i.over ? `${money(i.over.amt)} ભરવાની મુદત ${fmtD(i.over.d)} વીતી ગઈ છે.` : i.next ? `આગળનો હપ્તો: ${fmtD(i.next.d)} સુધીમાં ${money(i.next.amt)}` : "";
   } catch {}
   const canDel = isAdmin() || (isFeeStaff() && r.by === S.me.loginId);
   const back = isFeeStaff() ? `#/student/${encodeURIComponent(r.studentId)}` : "#/myfees";
   v.innerHTML = `
     <div class="row-between"><a class="btn line" href="${back}">${ic("back", 18)} પાછા</a><span class="sub">${r.legacy ? "જૂની પહોંચ" : ""}</span></div>
-    ${receiptHtml(r, nextTxt)}
+    ${receiptHtml(r, nextTxt, over)}
     <div class="grid2"><button type="button" class="btn wa" id="r_wa">${ic("wa", 18)} ${isFeeStaff() ? "વાલીને WhatsApp" : "શેર કરો"}</button>
       <button type="button" class="btn line" id="r_pr">${ic("print", 18)} છાપો / PDF</button></div>
     ${isFeeStaff() ? `<a class="btn line big" href="#/pay/${encodeURIComponent(r.studentId)}">${ic("rupee", 18)} આ વિદ્યાર્થીની બીજી ફી લો</a>` : ""}
     ${canDel ? `<button type="button" class="btn line danger big" id="r_del">આ પહોંચ ભૂંસો</button>` : ""}`;
   const text = `${ACADEMY.name}\nફી પહોંચ નં. ${r.no} • ${fmtD(r.date)}\n${r.name}: ${money(r.amount)} જમા (${modeName(r.mode)})\nબાકી: ${money(r.balance)}${nextTxt ? "\n" + nextTxt : ""}`;
   $("#r_wa").onclick = e => busy(e.currentTarget, () => shareReceipt(r, text));
-  $("#r_pr").onclick = () => printReceipt(r, nextTxt);
+  $("#r_pr").onclick = () => printReceipt(r, nextTxt, over);
   $("#r_del", v)?.addEventListener("click", e => {
     if (!confirm(`પહોંચ નં. ${r.no} (${money(r.amount)}) ભૂંસવી છે? વિદ્યાર્થીની જમા ફી પણ એટલી ઘટશે.`)) return;
     busy(e.currentTarget, async () => {
@@ -317,9 +318,9 @@ async function shareReceipt(r, text) {
   }
   if (isFeeStaff() && r.wa) window.open(waLink(r.wa, text), "_blank");
 }
-function printReceipt(r, nextTxt) {
+function printReceipt(r, nextTxt, over) {
   let el = $("#print"); if (!el) { el = document.createElement("div"); el.id = "print"; document.body.appendChild(el); }
-  el.innerHTML = `<section class="pr-rc">${receiptHtml(r, nextTxt).replace('id="rcpt"', "")}</section>`;
+  el.innerHTML = `<section class="pr-rc">${receiptHtml(r, nextTxt, over).replace('id="rcpt"', "")}</section>`;
   const t = document.title; document.title = `પહોંચ_${r.no}_${r.name}`;
   setTimeout(() => { window.print(); document.title = t; }, 150);
 }
