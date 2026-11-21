@@ -181,6 +181,7 @@ export function welcomeOnce() {
   // વિદ્યાર્થી: "અટક નામ પિતા" માંથી નામ; સ્ટાફ: પહેલો શબ્દ; વાલી/Master: નામ વગર
   const parts = String(S.profile?.name || "").trim().split(/\s+/);
   const first = S.me.role === "student" ? (parts[1] || parts[0]) : ["parent", "master"].includes(S.me.role) ? "" : parts[0];
+  if (S.me.role === "master") return say("બાવળિયા સર, તમારું ગાંડિવ એકેડેમીમાં હાર્દિક સ્વાગત છે");
   say(`${first ? "નમસ્તે " + first + ", " : ""}ગાંડિવ એકેડેમીમાં આપનું સ્વાગત છે`);
 }
 
