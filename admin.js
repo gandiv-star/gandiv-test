@@ -34,22 +34,7 @@ const chipVals = (root, name) => $$(`[data-chip="${name}"].on`, root).map(b => b
 // ================= હોમ (ભાગ 7 માં પૂરું ડેશબોર્ડ) =================
 page("home", async v => {
   const r = S.me.role, name = esc(S.profile?.name || "");
-  if (isAdmin()) {
-    const noBranch = !S.branches.length;
-    v.innerHTML = `
-      <div class="card hello"><h1>નમસ્તે, ${name}</h1><p>${esc(branchName(S.branchId) || ACADEMY.name)} • શૈક્ષણિક વર્ષ ${esc(S.year)}</p></div>
-      ${noBranch ? `<div class="card warn"><h2>પહેલું પગલું: શાખા ઉમેરો</h2><p>હજુ કોઈ શાખા નથી. ગોઠવણમાં જઈને મહુવા શાખા ઉમેરો.</p><a class="btn primary" href="#/settings">ગોઠવણ ખોલો</a></div>` : ""}
-      <div class="grid2">
-        <a class="tile" href="#/admit">${ic("plus", 26)}<span>નવો પ્રવેશ</span></a>
-        <a class="tile" href="#/students">${ic("users", 26)}<span>વિદ્યાર્થીઓ</span></a>
-        <a class="tile" href="#/att">${ic("check", 26)}<span>હાજરી</span></a>
-        <a class="tile" href="#/batches">${ic("batch", 26)}<span>બેચ</span></a>
-        <a class="tile" href="#/old">${ic("dl", 26)}<span>જૂનો ડેટા</span></a>
-        <a class="tile" href="#/settings">${ic("gear", 26)}<span>ગોઠવણ અને લોગિન</span></a>
-      </div>
-      <p class="muted center">ડેશબોર્ડ આગળના ભાગમાં ઉમેરાશે.</p>`;
-    return;
-  }
+  if (isAdmin()) return (await import("./home.js")).dashboard(v);
   if (r === "student" || r === "parent") return (await import("./students.js")).familyHome(v);
   if (r === "dataEntry") return (await import("./students.js")).entryPage(v);
   if (r === "teacher") return (await import("./att.js")).attHome(v);

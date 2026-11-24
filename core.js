@@ -98,11 +98,11 @@ const NAV = {
 };
 // મેનુમાં ન દેખાય પણ ખૂલી શકે એવાં પાનાં
 const EXTRA = {
-  admin: ["admit", "student", "viewas", "old", "entry", "assign", "pay", "oldpay", "receipt", "sched", "batches", "take", "attrep", "battrep"],
-  dataEntry: ["admit", "student", "viewas", "entry", "assign", "fees", "pay", "oldpay", "receipt"],
-  staff: ["student", "pay", "oldpay", "receipt", "take", "attrep", "battrep"],
-  teacher: ["att", "take", "attrep", "battrep"],
-  family: ["myfees", "receipt", "attrep"]
+  admin: ["admit", "student", "viewas", "old", "entry", "assign", "pay", "oldpay", "receipt", "sched", "batches", "take", "attrep", "battrep", "search", "bday"],
+  dataEntry: ["admit", "student", "viewas", "entry", "assign", "fees", "pay", "oldpay", "receipt", "search"],
+  staff: ["student", "pay", "oldpay", "receipt", "take", "attrep", "battrep", "search", "bday"],
+  teacher: ["att", "take", "attrep", "battrep", "student", "search", "bday"],
+  family: ["myfees", "receipt", "attrep", "bday"]
 };
 const extraFor = r => (["master", "branchAdmin"].includes(r) ? EXTRA.admin : ["accountant", "receptionist"].includes(r) ? EXTRA.staff
   : ["student", "parent"].includes(r) ? EXTRA.family : EXTRA[r] || []);
@@ -269,6 +269,7 @@ export function renderShell() {
         <img src="logo.png" alt="ગાંડિવ એકેડેમીનો લોગો" class="top-logo">
         <div class="top-who"><b>${esc(S.profile?.name || S.me.loginId)}</b><span>${brSel} ${IS_TEST ? '<em class="test-tag">ટેસ્ટિંગ</em>' : ""}</span></div>
         <span class="role-chip">${esc(meta.label)}</span>
+        ${["student", "parent"].includes(r) ? "" : `<a class="icon-btn" href="#/search" aria-label="શોધો">${ic("search")}</a>`}
         <button type="button" class="icon-btn" id="sndBtn" aria-label="${soundOn() ? "અવાજ બંધ કરો" : "અવાજ ચાલુ કરો"}">${ic(soundOn() ? "snd" : "mute")}</button>
         <button type="button" class="icon-btn top-out" id="topOut" aria-label="બહાર નીકળો">${ic("out")}</button>
       </header>

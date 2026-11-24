@@ -15,6 +15,7 @@ import { ACADEMY } from "./config.js";
 import { createLogin, resetLogin, showCreds, reserveId } from "./admin.js";
 import { feeTab, loadSched, dueLine, isFeeStaff } from "./fees.js";
 import { loadStudentAtt, studentMonth, calHtml, todayCard, canAtt } from "./att.js";
+import { bdayCard } from "./home.js";
 
 const STDS = ["7", "8", "9", "10", "11", "12"];
 const COURSES = ["NEET", "GUJCET", "JEE", "NMMS", "CET"];
@@ -58,7 +59,8 @@ function feeTag(pay, paid) {
 const rosterEntry = s => ({
   n: s.name, s: s.std, b: s.batchId || "", bn: s.batchName || "", v: s.village || "",
   m: s.mobParent || "", p: num(s.fee?.pay), pd: num(s.fee?.paid), f: s.formNo || "", x: s.status || "active",
-  l: s.hasLogin === false ? 0 : 1, pl: s.fee?.plan || "વાર્ષિક"
+  l: s.hasLogin === false ? 0 : 1, pl: s.fee?.plan || "વાર્ષિક",
+  d: s.dob || "", e: s.nameEn || ""   // જન્મદિવસ અને અંગ્રેજી નામથી શોધ માટે
 });
 
 // ================= યાદી =================
@@ -421,7 +423,7 @@ async function saveAdmission() {
     mobParent, mobStudent: mob10(F.mobStudent), waSame: !!F.waSame, mobWa: F.waSame ? mobParent : mob10(F.mobWa),
     mother: F.mother || "", fatherEdu: F.fatherEdu || "", fatherJob: F.fatherJob || "", motherEdu: F.motherEdu || "", motherJob: F.motherJob || "",
     siblings: (F.siblings || []).filter(s => String(s.n || "").trim()),
-    fee, note: F.note || "", rules: true, hasPhoto: !!F.photo, updatedAt: serverTimestamp()
+    fee, note: F.note || "", rules: true, hasPhoto: !!F.photo, nameEn: F.gf?.n || F.nameEn || "", updatedAt: serverTimestamp()
   };
   const metaUpd = {
     caste: arrayUnion(...[data.caste].filter(Boolean)), school: arrayUnion(...[data.school].filter(Boolean)),
@@ -562,7 +564,8 @@ page("student", async v => {
   const [ss, ps, us] = await Promise.all([getDoc(doc(db, "students", id)), getDoc(doc(db, "photos", id)).catch(() => null), getDoc(doc(db, "users", id)).catch(() => null)]);
   if (!ss.exists()) { v.innerHTML = `<div class="empty">આ વિદ્યાર્થી મળ્યો નહીં.</div><a class="btn line" href="#/students">યાદીમાં પાછા</a>`; return; }
   const s = ss.data(), photo = ps?.exists() ? ps.data().data : "", u = us?.exists() ? us.data() : null;
-  const tab = sessionStorage.getItem("gv_ftab") || "info";
+  let tab = sessionStorage.getItem("gv_ftab") || "info";
+  if (tab === "fee" && S.me.role === "teacher") tab = "info";
   const off = s.status === "cancelled";
   const kv = rows => `<div class="kv">${rows.filter(r => r[1]).map(([a, b]) => `<span>${a}</span><b>${b}</b>`).join("")}</div>`;
   v.innerHTML = `
@@ -579,7 +582,7 @@ page("student", async v => {
         <a href="#/viewas/${encodeURIComponent(id)}"><span>${ic("eye")}</span>વિદ્યાર્થી તરીકે જુઓ</a>
       </div>
     </div>
-    <div class="tabs" role="tablist">${[["info", "માહિતી"], ["fee", "ફી"], ["att", "હાજરી"], ["marks", "ગુણ"]].map(([k, l]) => `<button type="button" role="tab" class="tab ${k === tab ? "on" : ""}" data-ft="${k}" aria-selected="${k === tab}">${l}</button>`).join("")}</div>
+    <div class="tabs" role="tablist">${[["info", "માહિતી"], ["fee", "ફી"], ["att", "હાજરી"], ["marks", "ગુણ"]].filter(t => !(t[0] === "fee" && S.me.role === "teacher")).map(([k, l]) => `<button type="button" role="tab" class="tab ${k === tab ? "on" : ""}" data-ft="${k}" aria-selected="${k === tab}">${l}</button>`).join("")}</div>
     ${tab === "info" ? `
     <div class="card"><h2>વિદ્યાર્થી</h2>${kv([
       ["ફોર્મ ક્રમાંક", `${esc(s.formNo)} • ${fmtD(s.formDate)}${s.legacy ? " (જૂનું ફોર્મ)" : ""}`],
@@ -651,20 +654,26 @@ page("student", async v => {
 
 // ================= વિદ્યાર્થીનું હોમ (વિદ્યાર્થી પોતે અને "વિદ્યાર્થી તરીકે જુઓ") =================
 export function studentHomeHtml(s, photo = "", sched = null, live = false, att = null, sid = "") {
+  const ym = ymd().slice(0, 7), m = att ? studentMonth(att, sid, ym) : null;
   return `
+    ${live && sid ? bdayCard(s, sid, "student") : ""}
     ${todayCard(att, sid, "તમે").replace("તમે ક્લાસમાં ગેરહાજર છે", "તમે ક્લાસમાં ગેરહાજર છો")}
     <div class="card hello"><div class="prof"><span class="ph lg">${photo ? `<img src="${photo}" alt="${esc(s.name)} નો ફોટો">` : initial(s.name)}</span>
       <div class="grow"><h1>નમસ્તે, ${esc(String(s.name || "").split(" ")[1] || s.name)} 👋</h1>
       <p>${cls(s.std, s.batchName)} • ${esc(branchName(s.branchId))}</p></div></div></div>
+    <div class="dash">
+      <a ${sid ? `href="#/attrep/${encodeURIComponent(sid)}/${ym}"` : ""}><span class="sub">આ મહિને હાજરી</span>
+        <b style="color:${m?.pct == null ? "var(--muted)" : m.pct < 75 ? "#DC2626" : "#15803D"}">${m?.pct == null ? "—" : m.pct + "%"}</b>
+        <span class="sub">${m ? (m.c.l ? `${m.c.l} વાર મોડા` : "સમયસર ✓") : "હજુ લેવાઈ નથી"}</span></a>
+      <a ${live ? `href="#/myfees"` : ""}><span class="sub">ફી</span>${dueLine(s.fee, sched, "student") || `<span class="sub">નક્કી નથી</span>`}</a>
+    </div>
     <div class="grid2">
-      <a class="tile soon">${ic("batch", 28)}<span>સમયપત્રક</span></a>
-      <a class="tile ${sid ? "" : "soon"}" ${sid ? `href="#/attrep/${encodeURIComponent(sid)}/${ymd().slice(0, 7)}"` : ""}>${ic("check", 28)}<span>મારી હાજરી${att ? ` • ${studentMonth(att, sid, ymd().slice(0, 7)).pct ?? "—"}%` : ""}</span></a>
+      <a class="tile ${sid ? "" : "soon"}" ${sid ? `href="#/attrep/${encodeURIComponent(sid)}/${ym}"` : ""}>${ic("check", 28)}<span>મારી હાજરી</span></a>
+      <a class="tile ${live ? "" : "soon"}" ${live ? `href="#/myfees"` : ""}>${ic("receipt", 28)}<span>ફી અને પહોંચો</span></a>
       <a class="tile soon">${ic("edit", 28)}<span>ટેસ્ટ, ગુણ</span></a>
       <a class="tile soon">${ic("info", 28)}<span>સૂચનાઓ</span></a>
     </div>
-    ${dueLine(s.fee, sched, "student")}
-    ${live && num(s.fee?.pay) ? `<a class="link-btn" href="#/myfees">${ic("receipt", 16)} મારી ફી અને પહોંચો</a>` : ""}
-    <p class="muted center">સમયપત્રક, ટેસ્ટ અને સૂચનાઓ આગળના ભાગમાં ઉમેરાશે.</p>`;
+    <p class="muted center">સમયપત્રક, ટેસ્ટ અને સૂચનાઓ ફેઝ 1B માં ઉમેરાશે.</p>`;
 }
 
 page("viewas", async v => {
@@ -751,6 +760,7 @@ export async function familyHome(v) {
     return { id, ...x.data(), photo: p?.exists() ? p.data().data : "", att };
   }))).filter(k => k && k.status !== "cancelled");
   v.innerHTML = `
+    ${kids.map(k => bdayCard({ name: k.name, dob: k.dob }, k.id, "parent")).join("")}
     ${kids.map(k => todayCard(k.att, k.id, String(k.name || "").split(" ")[1] || k.name)).join("")}
     <div class="card hello"><h1>નમસ્તે 🙏</h1><p>${esc(branchName(S.branchId))} • ${kids.length > 1 ? `${kids.length} બાળકો` : "વાલી"}</p></div>
     ${kids.map(k => {

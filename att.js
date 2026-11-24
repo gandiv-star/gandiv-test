@@ -8,6 +8,7 @@
 import { db, collection, doc, getDoc, getDocs, query, where, writeBatch, serverTimestamp } from "./fb.js";
 import { $, $$, esc, S, isAdmin, toast, fail, busy, audit, page, ic, route, fmtD, ymd, z2, waLink, modal, closeModal, buzz, chime } from "./core.js";
 import { ACADEMY } from "./config.js";
+import { isBday } from "./home.js";
 
 const ST = { p: "હાજર", a: "ગેરહાજર", l: "મોડો", h: "રજા" };
 const NEXT = { p: "a", a: "l", l: "h", h: "p" };
@@ -86,6 +87,8 @@ export async function attHome(v) {
     ${ME.role === "teacher" ? `<div class="card hello"><h1>નમસ્તે, ${esc(String(PROF?.name || "").split(" ")[0])} 🙏</h1>
       <p>${["રવિવાર", "સોમવાર", "મંગળવાર", "બુધવાર", "ગુરુવાર", "શુક્રવાર", "શનિવાર"][d0.getDay()]}, ${d0.getDate()} ${MONTHS_FULL[d0.getMonth()]} • ${list.length} બેચ</p></div>`
       : `<h1 class="page-title">${isToday ? "આજની હાજરી" : "હાજરી: " + fmtD(date)}</h1>`}
+    ${(() => { const ids = new Set(mine.map(b => b.id)), bd = roster.filter(r => isBday(r.d) && (ME.role !== "teacher" || ids.has(r.b)));
+      return ME.role === "teacher" && bd.length ? `<a class="bday" href="#/bday"><span style="font-size:28px">🎂</span><span class="grow"><b>આજે ${bd.length} વિદ્યાર્થીનો જન્મદિવસ</b><span class="sub" style="display:block">${bd.slice(0, 3).map(r => esc(r.n)).join(" • ")}</span></span></a>` : ""; })()}
     <div class="row-between" style="gap:8px">
       <label class="field" style="flex:1;margin:0"><span class="sr">તારીખ</span><input type="date" id="adate" value="${date}" max="${ymd()}"></label>
       ${isToday ? "" : `<button type="button" class="btn line" id="atoday">આજે</button>`}
