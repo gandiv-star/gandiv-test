@@ -14,6 +14,7 @@ import {
 import { ACADEMY } from "./config.js";
 import { createLogin, resetLogin, showCreds, reserveId } from "./admin.js";
 import { feeTab, loadSched, dueLine, isFeeStaff } from "./fees.js";
+import { loadStudentAtt, studentMonth, calHtml, todayCard, canAtt } from "./att.js";
 
 const STDS = ["7", "8", "9", "10", "11", "12"];
 const COURSES = ["NEET", "GUJCET", "JEE", "NMMS", "CET"];
@@ -604,9 +605,18 @@ page("student", async v => {
       ["પ્રવેશ ફી / સ્ટેશનરી", money(s.fee?.adm)], ["અભ્યાસ ફી", money(s.fee?.tui)], ["ટોટલ ફી", money(s.fee?.total)],
       ["સ્કોલરશિપ", money(s.fee?.sch)], ["ચૂકવવાની થતી", money(s.fee?.pay)], ["રીત", esc(s.fee?.plan)]
     ])}</div>`
-    : `<div class="empty">${tab === "att" ? "હાજરી ભાગ 6 માં ચાલુ થશે." : "ગુણ આગળના ભાગમાં ચાલુ થશે."}</div>`}`;
+    : tab === "att" ? `<div id="atttab" class="stack">${SKEL}</div>`
+    : `<div class="empty">ગુણ આગળના ભાગમાં ચાલુ થશે.</div>`}`;
   $$("[data-ft]", v).forEach(b => b.onclick = () => { sessionStorage.setItem("gv_ftab", b.dataset.ft); route(); });
   if ($("#feetab", v)) feeTab($("#feetab", v), id, s).catch(e => { $("#feetab", v).innerHTML = `<div class="empty">ફી ખૂલી નહીં.</div>`; console.error(e); });
+  if ($("#atttab", v)) (async () => {
+    const ym = ymd().slice(0, 7), att = await loadStudentAtt(s, ym), m = studentMonth(att, id, ym), el = $("#atttab", v);
+    if (!el) return;
+    el.innerHTML = !s.batchId ? `<div class="empty">બેચ ગોઠવાઈ નથી, એટલે હાજરી નથી.</div>`
+      : `${todayCard(att, id, String(s.name || "").split(" ")[1] || s.name)}
+        <div class="card"><div class="row-between"><h2>આ મહિનાની હાજરી</h2>${m.pct != null ? `<b style="color:${m.pct < 75 ? "#DC2626" : "#15803D"}">${m.pct}%</b>` : ""}</div>${att ? calHtml(m, ym) : `<p class="muted">આ મહિને હજુ હાજરી લેવાઈ નથી.</p>`}</div>
+        <a class="btn line big" href="#/attrep/${encodeURIComponent(id)}/${ym}">માસિક રિપોર્ટ (મોડા આવ્યાની યાદી સાથે)</a>`;
+  })().catch(e => console.error(e));
   $("#pdf").onclick = e => { e.preventDefault(); printForm({ ...s, loginId: id }, photo); };
   $("#rp", v)?.addEventListener("click", () => {
     const d = modal("કોનો પાસવર્ડ રીસેટ કરવો છે?", `<div class="stack">
@@ -640,20 +650,21 @@ page("student", async v => {
 });
 
 // ================= વિદ્યાર્થીનું હોમ (વિદ્યાર્થી પોતે અને "વિદ્યાર્થી તરીકે જુઓ") =================
-export function studentHomeHtml(s, photo = "", sched = null, live = false) {
+export function studentHomeHtml(s, photo = "", sched = null, live = false, att = null, sid = "") {
   return `
+    ${todayCard(att, sid, "તમે").replace("તમે ક્લાસમાં ગેરહાજર છે", "તમે ક્લાસમાં ગેરહાજર છો")}
     <div class="card hello"><div class="prof"><span class="ph lg">${photo ? `<img src="${photo}" alt="${esc(s.name)} નો ફોટો">` : initial(s.name)}</span>
       <div class="grow"><h1>નમસ્તે, ${esc(String(s.name || "").split(" ")[1] || s.name)} 👋</h1>
       <p>${cls(s.std, s.batchName)} • ${esc(branchName(s.branchId))}</p></div></div></div>
     <div class="grid2">
       <a class="tile soon">${ic("batch", 28)}<span>સમયપત્રક</span></a>
-      <a class="tile soon">${ic("check", 28)}<span>મારી હાજરી</span></a>
+      <a class="tile ${sid ? "" : "soon"}" ${sid ? `href="#/attrep/${encodeURIComponent(sid)}/${ymd().slice(0, 7)}"` : ""}>${ic("check", 28)}<span>મારી હાજરી${att ? ` • ${studentMonth(att, sid, ymd().slice(0, 7)).pct ?? "—"}%` : ""}</span></a>
       <a class="tile soon">${ic("edit", 28)}<span>ટેસ્ટ, ગુણ</span></a>
       <a class="tile soon">${ic("info", 28)}<span>સૂચનાઓ</span></a>
     </div>
     ${dueLine(s.fee, sched, "student")}
     ${live && num(s.fee?.pay) ? `<a class="link-btn" href="#/myfees">${ic("receipt", 16)} મારી ફી અને પહોંચો</a>` : ""}
-    <p class="muted center">હાજરી, ટેસ્ટ અને સૂચનાઓ આગળના ભાગમાં ઉમેરાશે.</p>`;
+    <p class="muted center">સમયપત્રક, ટેસ્ટ અને સૂચનાઓ આગળના ભાગમાં ઉમેરાશે.</p>`;
 }
 
 page("viewas", async v => {
@@ -726,7 +737,8 @@ export function printForm(s, photo) {
 export async function familyHome(v) {
   if (S.me.role === "student") {
     const [ss, ps, sched] = await Promise.all([getDoc(doc(db, "students", S.me.loginId)), getDoc(doc(db, "photos", S.me.loginId)).catch(() => null), loadSched()]);
-    v.innerHTML = ss.exists() ? studentHomeHtml(ss.data(), ps?.exists() ? ps.data().data : "", sched, true) : `<div class="card hello"><h1>નમસ્તે, ${esc(S.profile?.name || "")}</h1></div>`;
+    const att = ss.exists() ? await loadStudentAtt(ss.data()) : null;
+    v.innerHTML = ss.exists() ? studentHomeHtml(ss.data(), ps?.exists() ? ps.data().data : "", sched, true, att, S.me.loginId) : `<div class="card hello"><h1>નમસ્તે, ${esc(S.profile?.name || "")}</h1></div>`;
     return;
   }
   // વાલી: બધાં બાળકો
@@ -734,16 +746,22 @@ export async function familyHome(v) {
   const sched = await loadSched();
   const kids = (await Promise.all(ids.map(async id => {
     const [x, p] = await Promise.all([getDoc(doc(db, "students", id)).catch(() => null), getDoc(doc(db, "photos", id)).catch(() => null)]);
-    return x?.exists() ? { id, ...x.data(), photo: p?.exists() ? p.data().data : "" } : null;
+    if (!x?.exists()) return null;
+    const att = await loadStudentAtt(x.data()).catch(() => null);
+    return { id, ...x.data(), photo: p?.exists() ? p.data().data : "", att };
   }))).filter(k => k && k.status !== "cancelled");
   v.innerHTML = `
+    ${kids.map(k => todayCard(k.att, k.id, String(k.name || "").split(" ")[1] || k.name)).join("")}
     <div class="card hello"><h1>નમસ્તે 🙏</h1><p>${esc(branchName(S.branchId))} • ${kids.length > 1 ? `${kids.length} બાળકો` : "વાલી"}</p></div>
     ${kids.map(k => {
+      const ym = ymd().slice(0, 7), m = studentMonth(k.att, k.id, ym);
       return `<div class="card"><div class="prof"><span class="ph lg">${k.photo ? `<img src="${k.photo}" alt="${esc(k.name)} નો ફોટો">` : initial(k.name)}</span>
         <div class="grow"><b>${esc(k.name)}</b><span class="sub">${esc(k.id)} • ${cls(k.std, k.batchName)}</span></div></div>
-        ${dueLine(k.fee, sched)}${num(k.fee?.pay) ? ` <a class="link-btn" href="#/myfees">પહોંચો જુઓ</a>` : ""}</div>`;
+        ${dueLine(k.fee, sched)}${num(k.fee?.pay) ? ` <a class="link-btn" href="#/myfees">પહોંચો જુઓ</a>` : ""}
+        ${k.att ? `<div class="row-between"><h2>હાજરી: ${["જાન્યુઆરી", "ફેબ્રુઆરી", "માર્ચ", "એપ્રિલ", "મે", "જૂન", "જુલાઈ", "ઑગસ્ટ", "સપ્ટેમ્બર", "ઑક્ટોબર", "નવેમ્બર", "ડિસેમ્બર"][+ym.slice(5) - 1]}</h2>${m.pct != null ? `<b style="color:${m.pct < 75 ? "#DC2626" : "#15803D"}">${m.pct}%</b>` : ""}</div>${calHtml(m, ym)}` : ""}
+        <a class="btn line" href="#/attrep/${encodeURIComponent(k.id)}/${ym}">મહિનાનો હાજરી રિપોર્ટ</a></div>`;
     }).join("") || `<div class="empty">હજુ કોઈ બાળક જોડાયેલું નથી.</div>`}
-    <p class="muted center">હાજરી, ગેરહાજરીની જાણ અને પરિણામ આગળના ભાગમાં ઉમેરાશે.</p>`;
+    <p class="muted center">ટેસ્ટ, પરિણામ અને સૂચનાઓ આગળના ભાગમાં ઉમેરાશે.</p>`;
 }
 
 // ================= બાકી ફોર્મ (Google Form ની યાદી) — ડેટા એન્ટ્રી / Master =================

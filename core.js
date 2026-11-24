@@ -89,8 +89,8 @@ export const ID_PREFIX = { dataEntry: "S", branchAdmin: "S", receptionist: "S", 
 
 // ---------- મેનુ ----------
 const NAV = {
-  admin: [["home", "હોમ", "home"], ["students", "વિદ્યાર્થી", "users"], ["fees", "ફી", "rupee"], ["batches", "બેચ", "batch"], ["settings", "ગોઠવણ", "gear"]],
-  staff: [["home", "હોમ", "home"], ["fees", "ફી", "rupee"], ["students", "વિદ્યાર્થી", "users"]],
+  admin: [["home", "હોમ", "home"], ["students", "વિદ્યાર્થી", "users"], ["att", "હાજરી", "check"], ["fees", "ફી", "rupee"], ["settings", "ગોઠવણ", "gear"]],
+  staff: [["home", "હોમ", "home"], ["att", "હાજરી", "check"], ["fees", "ફી", "rupee"], ["students", "વિદ્યાર્થી", "users"]],
   teacher: [["home", "આજે", "home"]],
   student: [["home", "હોમ", "home"]],
   parent: [["home", "હોમ", "home"]],
@@ -98,10 +98,11 @@ const NAV = {
 };
 // મેનુમાં ન દેખાય પણ ખૂલી શકે એવાં પાનાં
 const EXTRA = {
-  admin: ["admit", "student", "viewas", "old", "entry", "assign", "pay", "oldpay", "receipt", "sched"],
+  admin: ["admit", "student", "viewas", "old", "entry", "assign", "pay", "oldpay", "receipt", "sched", "batches", "take", "attrep", "battrep"],
   dataEntry: ["admit", "student", "viewas", "entry", "assign", "fees", "pay", "oldpay", "receipt"],
-  staff: ["student", "pay", "oldpay", "receipt"],
-  family: ["myfees", "receipt"]
+  staff: ["student", "pay", "oldpay", "receipt", "take", "attrep", "battrep"],
+  teacher: ["att", "take", "attrep", "battrep"],
+  family: ["myfees", "receipt", "attrep"]
 };
 const extraFor = r => (["master", "branchAdmin"].includes(r) ? EXTRA.admin : ["accountant", "receptionist"].includes(r) ? EXTRA.staff
   : ["student", "parent"].includes(r) ? EXTRA.family : EXTRA[r] || []);
@@ -130,6 +131,7 @@ export const ICON = {
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 8h0M12 11v6"/>',
   link: '<path d="M10 14a4 4 0 0 0 6 0l3-3a4 4 0 0 0-6-6l-1 1M14 10a4 4 0 0 0-6 0l-3 3a4 4 0 0 0 6 6l1-1"/>',
   dl: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   receipt: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>',
   upload: '<path d="M12 20V9M7 14l5-5 5 5M5 4h14"/>',
   snd: '<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/>',

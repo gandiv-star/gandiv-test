@@ -231,6 +231,8 @@ a.srow { color: var(--text); text-decoration: none; }
   .pf-office { display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px; }
   .pf-office td:nth-child(2) { width: 24px; text-align: center; } .pf-office td:last-child { text-align: right; width: 34%; }
   .pf-note { border: 1px solid #000; border-radius: 8px; padding: 8px; margin: 8px 0; }
+  .pr-att { font-size: 11pt; } .pr-att .card { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; margin: 6px 0; }
+  .pr-att .cal i, .pr-att .tbl th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .pr-rc .rc { box-shadow: none; max-width: 100%; border: 1px solid #999; font-size: 12pt; }
   .pr-rc .rc-h, .pr-rc .rc-tag, .pr-rc .rc-con, .pr-rc .rc-tb th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
@@ -271,6 +273,45 @@ a.srow { color: var(--text); text-decoration: none; }
 .rc-red { color: #C62828; }
 .rc-next { margin: 8px 0 0; font-size: 12px; font-weight: 600; color: #14225A; }
 .rc-s { display: flex; justify-content: space-between; gap: 8px; margin-top: 14px; font-size: 11px; flex-wrap: wrap; }
+
+
+/* ---------- ભાગ 6: હાજરી ---------- */
+.late { color: #C2410C; }
+.late-pill { background: #FFF7ED; color: #C2410C; }
+.pill.ok { background: #E6F4EA; color: #15803D; }
+.bt { display: flex; gap: 12px; align-items: center; padding: 12px; border-radius: 14px; background: #fff; border: 1px solid var(--line); color: var(--text); text-decoration: none; min-height: 64px; }
+.bt.todo { border-color: var(--role); }
+.bt .tm { font-weight: 800; color: var(--role); min-width: 54px; }
+.attlist { display: flex; flex-direction: column; gap: 8px; }
+.att { display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 12px; border-radius: 14px; background: #fff; border: 1.5px solid var(--line); min-height: 62px; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; }
+.att:active { transform: scale(.99); }
+.att .rn { width: 24px; color: var(--muted); font-weight: 700; text-align: center; }
+.att .grow b { font-size: 16px; }
+.att .grow .sub { display: block; }
+.att .st { min-width: 96px; text-align: center; border-radius: 12px; padding: 8px 4px; font-weight: 800; font-size: 15px; background: #E6F4EA; color: #15803D; }
+.att.ab { border-color: #FCA5A5; background: #FEF2F2; } .att.ab .st { background: #DC2626; color: #fff; }
+.att.lv .st { background: #FEF3C7; color: #92400E; }
+.att.lt { border-color: #FDBA74; background: #FFF7ED; } .att.lt .st { background: #F97316; color: #fff; }
+.att .link-btn { min-height: 32px; padding: 0; color: #C2410C; text-decoration: underline; }
+.sumbar { position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; background: var(--bg); padding: 6px 0; }
+.sumbar div { background: #fff; border-radius: 12px; padding: 6px; text-align: center; border: 1px solid var(--line); }
+.sumbar b { display: block; font-size: 20px; }
+.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; text-align: center; font-size: 13px; }
+.cal span { color: var(--muted); font-weight: 700; }
+.cal i { font-style: normal; aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 10px; background: #F1F3F8; font-weight: 700; line-height: 1; }
+.cal i small { font-size: 9px; margin-top: 2px; }
+.cal i.p { background: #E6F4EA; color: #15803D; } .cal i.a { background: #DC2626; color: #fff; } .cal i.h { background: #FEF3C7; color: #92400E; }
+.cal i.l { background: #F97316; color: #fff; } .cal i.e { background: transparent; }
+.cal-leg { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12.5px; color: var(--muted); }
+.card-alert { border-radius: 16px; padding: 14px; display: flex; gap: 12px; align-items: center; }
+.card-alert.red { background: #FEF2F2; border: 1.5px solid #FCA5A5; } .card-alert.org { background: #FFF7ED; border: 1.5px solid #FDBA74; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.tbl th { background: #F1F3F8; padding: 8px 4px; font-size: 12px; color: var(--muted); }
+.tbl td { padding: 9px 4px; border-top: 1px solid var(--line); text-align: center; }
+.tbl td:first-child, .tbl th:first-child { text-align: left; }
+.tbl td a { color: var(--text); font-weight: 700; }
+.big-time-in { font-size: 30px !important; font-weight: 800; text-align: center; min-height: 64px !important; }
+.btn.late-btn { background: #F97316; border-color: #F97316; }
 
 /* ---------- modal અને toast ---------- */
 dialog#modal { border: 0; padding: 0; border-radius: 20px; width: min(520px, calc(100vw - 24px)); max-height: calc(100vh - 32px); background: var(--card); }

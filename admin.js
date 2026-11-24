@@ -42,15 +42,17 @@ page("home", async v => {
       <div class="grid2">
         <a class="tile" href="#/admit">${ic("plus", 26)}<span>નવો પ્રવેશ</span></a>
         <a class="tile" href="#/students">${ic("users", 26)}<span>વિદ્યાર્થીઓ</span></a>
+        <a class="tile" href="#/att">${ic("check", 26)}<span>હાજરી</span></a>
         <a class="tile" href="#/batches">${ic("batch", 26)}<span>બેચ</span></a>
         <a class="tile" href="#/old">${ic("dl", 26)}<span>જૂનો ડેટા</span></a>
         <a class="tile" href="#/settings">${ic("gear", 26)}<span>ગોઠવણ અને લોગિન</span></a>
       </div>
-      <p class="muted center">ડેશબોર્ડ, ફી અને હાજરી આગળના ભાગમાં ઉમેરાશે.</p>`;
+      <p class="muted center">ડેશબોર્ડ આગળના ભાગમાં ઉમેરાશે.</p>`;
     return;
   }
   if (r === "student" || r === "parent") return (await import("./students.js")).familyHome(v);
   if (r === "dataEntry") return (await import("./students.js")).entryPage(v);
+  if (r === "teacher") return (await import("./att.js")).attHome(v);
   v.innerHTML = `<div class="card hello"><h1>નમસ્તે, ${name}</h1><p>${esc(ROLES[r]?.label || "")} • ${esc(branchName(S.branchId))}</p></div>
     <p class="muted center">તમારું હોમ આગળના ભાગમાં તૈયાર થશે.</p>`;
 });
