@@ -1,11 +1,12 @@
 // ગાંડિવ એકેડેમી V2 — ઝડપ અને offline માટે. કોડ બદલાય ત્યારે VERSION વધારવું.
-const VERSION = "gv2-17";
+const VERSION = "gv2-18";
 const FILES = ["./", "index.html", "app.css", "config.js", "fb.js", "core.js", "auth.js", "admin.js", "students.js", "fees.js", "att.js", "home.js", "logo.png", "icon-192.png", "manifest.json"];
 const SDK = ["firebase-app.js", "firebase-auth.js", "firebase-firestore.js"].map(f => "https://www.gstatic.com/firebasejs/10.12.2/" + f);
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(VERSION).then(async c => {
-    await c.addAll(FILES);
+    // GitHub નું 10 મિનિટનું cache ટાળો: નવી ફાઇલો સીધી લાવો
+    await c.addAll(FILES.map(f => new Request(f, { cache: "reload" })));
     await Promise.all(SDK.map(u => c.add(new Request(u, { mode: "cors" })).catch(() => {})));
   }).then(() => self.skipWaiting()));
 });

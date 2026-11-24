@@ -40,7 +40,16 @@
   import "./admin.js";
   import "./students.js";
   boot();
-  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+  if ("serviceWorker" in navigator) {
+    // નવું વર્ઝન આવે એટલે એક વાર આપમેળે ફરી ખોલો (જાતે બંધ-ચાલુ ન કરવું પડે)
+    const had = !!navigator.serviceWorker.controller;
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => { if (had && !reloaded) { reloaded = true; location.reload(); } });
+    navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(r => {
+      r.update().catch(() => {});
+      document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") r.update().catch(() => {}); });
+    }).catch(() => {});
+  }
 </script>
 </body>
 </html>
