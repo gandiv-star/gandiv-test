@@ -122,7 +122,7 @@ page("take", async v => {
   const b = { id: batchId, ...bs.data() };
   const kids = roster.filter(r => r.b === batchId).sort((x, y) => String(x.n).localeCompare(String(y.n), "gu"));
   const old = att?.days?.[dd];
-  const M = {}, T = { ...(old?.t || {}) }, Rn = { ...(old?.r || {}) };
+  const M = {}, T = { ...(old?.t || {}) }, Rn = { ...(old?.r || {}) }, MAN = { ...(old?.t || {}) }; // MAN = ઘડિયાળમાંથી જાતે પસંદ કરેલો સમય
   kids.forEach(k => M[k.id] = old?.s?.[k.id] || "p");
   const draw = () => {
     const c = { p: 0, a: 0, l: 0, h: 0 }; kids.forEach(k => c[M[k.id]]++);
@@ -158,26 +158,73 @@ page("take", async v => {
     $("#save").onclick = e => save(e.currentTarget, false);
     $("#hol").onclick = e => { if (confirm(`${fmtD(date)} ના દિવસે ${b.name} નો વર્ગ નથી (રજા) તરીકે સાચવવું છે?`)) save(e.currentTarget, true); };
   };
-  // ઘડિયાળ: આવ્યાનો સમય
+  // ઘડિયાળ: આવ્યાનો સમય — બેચનો કલાક પહેલેથી, સીધો મિનિટનો કાંટો ફેરવો (કલાક બદલવો હોય તો કલાક દબાવો)
   const clock = id => {
     const k = kids.find(x => x.id === id);
-    const base = mins(b.start);
-    const quick = date === ymd() ? [["હમણાં", nowHM()]] : [];
-    if (base != null) [5, 10, 15, 20, 30].forEach(m => { const t = base + m; quick.push([`+${m} મિ.`, `${z2(Math.floor(t / 60))}:${z2(t % 60)}`]); });
+    const init = (MAN[id] && T[id]) || b.start || T[id] || nowHM();
+    let [H, Mi] = init.split(":").map(Number);
+    if (!Number.isFinite(H)) { H = new Date().getHours(); Mi = 0; }
+    let mode = "m";
     const d = modal(`${k.n}: ક્યારે આવ્યા?`, `
       <div class="stack">
-        <label class="field"><span class="lbl">આવ્યાનો સમય</span><input type="time" id="tmv" value="${esc(T[id] || nowHM())}" class="big-time-in"></label>
-        <p class="hint" id="tmh"></p>
-        <div class="chips">${quick.map(([l, t]) => `<button type="button" class="chip" data-qt="${t}">${l}</button>`).join("")}</div>
+        <div class="clk-top">
+          <button type="button" class="clk-v" id="ch"></button><b class="clk-c">:</b><button type="button" class="clk-v on" id="cm"></button>
+          <span class="clk-ap"><button type="button" id="am">AM</button><button type="button" id="pm">PM</button></span>
+        </div>
+        <p class="hint center" id="tmh" style="margin:0"></p>
+        <svg id="dial" class="dial" viewBox="0 0 260 260" role="slider" aria-label="ઘડિયાળ" tabindex="0"></svg>
+        <p class="hint center" id="dhint" style="margin:0"></p>
+        ${date === ymd() ? `<button type="button" class="link-btn" id="tnow">હમણાંનો સમય (${nowHM()})</button>` : ""}
         <label class="field"><span class="lbl">કારણ (હોય તો)</span><input id="tmr" value="${esc(Rn[id] || "")}" placeholder="જેમ કે શાળામાંથી મોડું છૂટ્યું"></label>
-        <div class="grid2"><button type="button" class="btn line" id="tmx">મોડો કાઢો</button><button type="button" class="btn primary late-btn" id="tmok">${ic("check", 18)} સાચવો</button></div>
+        <div class="grid2"><button type="button" class="btn line" id="tmx">મોડો કાઢો</button><button type="button" class="btn primary late-btn" id="tmok"></button></div>
       </div>`);
-    const hint = () => { const m = lateBy($("#tmv", d).value, b.start); $("#tmh", d).innerHTML = b.start ? `બેચ ${esc(b.start)} થી → <b class="late">${m} મિનિટ મોડો</b>` : ""; };
-    $("#tmv", d).oninput = hint; hint();
-    $$("[data-qt]", d).forEach(q => q.onclick = () => { $("#tmv", d).value = q.dataset.qt; hint(); });
-    $("#tmok", d).onclick = () => { T[id] = $("#tmv", d).value || nowHM(); Rn[id] = $("#tmr", d).value.trim(); M[id] = "l"; closeModal(); draw(); };
-    $("#tmx", d).onclick = () => { M[id] = "p"; delete T[id]; delete Rn[id]; closeModal(); draw(); };
-    try { $("#tmv", d).showPicker?.(); } catch {}
+    const val = () => `${z2(H)}:${z2(Mi)}`;
+    const svg = $("#dial", d);
+    const pos = (i, n, r) => { const a = (i / n) * 2 * Math.PI - Math.PI / 2; return [130 + r * Math.cos(a), 130 + r * Math.sin(a)]; };
+    const show = () => {
+      const h12 = H % 12 || 12;
+      $("#ch", d).textContent = z2(h12); $("#cm", d).textContent = z2(Mi);
+      $("#ch", d).classList.toggle("on", mode === "h"); $("#cm", d).classList.toggle("on", mode === "m");
+      $("#am", d).classList.toggle("on", H < 12); $("#pm", d).classList.toggle("on", H >= 12);
+      // કાંટા: કલાક (ટૂંકો, આછો) અને મિનિટ (લાંબો, નારંગી)
+      const hp = pos((H % 12) + Mi / 60, 12, 62), mp = pos(Mi, 60, 96);
+      const sel = mode === "m" ? mp : pos(H % 12, 12, 96);
+      const nums = mode === "m"
+        ? Array.from({ length: 12 }, (_, i) => { const [x, y] = pos(i * 5, 60, 104); return `<text x="${x}" y="${y}" class="${i * 5 === Mi ? "on" : ""}">${z2(i * 5)}</text>`; }).join("")
+        : Array.from({ length: 12 }, (_, i) => { const n = i || 12, [x, y] = pos(i, 12, 104); return `<text x="${x}" y="${y}" class="${(H % 12) === i ? "on" : ""}">${n}</text>`; }).join("");
+      svg.innerHTML = `<circle cx="130" cy="130" r="126" class="face"/>
+        <line x1="130" y1="130" x2="${hp[0]}" y2="${hp[1]}" class="hh ${mode === "h" ? "act" : ""}"/>
+        ${mode === "m" ? `<line x1="130" y1="130" x2="${mp[0]}" y2="${mp[1]}" class="mh"/>` : ""}
+        <circle cx="${sel[0]}" cy="${sel[1]}" r="20" class="knob"/>${nums}<circle cx="130" cy="130" r="5" class="ctr"/>`;
+      $("#dhint", d).textContent = mode === "m" ? "મિનિટનો કાંટો ફેરવો કે આંકડો દબાવો • કલાક બદલવો હોય તો ઉપર કલાક દબાવો" : "કલાક પસંદ કરો (પછી આપમેળે મિનિટ પર જશે)";
+      const m = lateBy(val(), b.start);
+      $("#tmh", d).innerHTML = b.start ? `બેચ ${esc(b.start)} થી → <b class="late">${m} મિનિટ મોડો</b>` : "";
+      $("#tmok", d).innerHTML = `${ic("check", 18)} મોડો: ${val()}`;
+    };
+    // આંગળી ફેરવો / દબાવો
+    const pick = (e, end) => {
+      const r = svg.getBoundingClientRect(), x = e.clientX - r.left - r.width / 2, y = e.clientY - r.top - r.height / 2;
+      let ang = Math.atan2(y, x) + Math.PI / 2; if (ang < 0) ang += 2 * Math.PI;
+      if (mode === "m") { const nm = Math.round(ang / (2 * Math.PI) * 60) % 60; if (nm !== Mi) { Mi = nm; buzz("tap"); } }
+      else { const nh = Math.round(ang / (2 * Math.PI) * 12) % 12; H = (H >= 12 ? 12 : 0) + nh; if (end) mode = "m"; }
+      show();
+    };
+    let drag = false;
+    svg.addEventListener("pointerdown", e => { drag = true; svg.setPointerCapture?.(e.pointerId); pick(e, false); });
+    svg.addEventListener("pointermove", e => { if (drag) pick(e, false); });
+    svg.addEventListener("pointerup", e => { if (drag) { drag = false; pick(e, true); } });
+    svg.addEventListener("keydown", e => {
+      if (e.key === "ArrowRight" || e.key === "ArrowUp") { Mi = (Mi + 1) % 60; show(); e.preventDefault(); }
+      if (e.key === "ArrowLeft" || e.key === "ArrowDown") { Mi = (Mi + 59) % 60; show(); e.preventDefault(); }
+    });
+    $("#ch", d).onclick = () => { mode = "h"; show(); };
+    $("#cm", d).onclick = () => { mode = "m"; show(); };
+    $("#am", d).onclick = () => { if (H >= 12) H -= 12; show(); };
+    $("#pm", d).onclick = () => { if (H < 12) H += 12; show(); };
+    $("#tnow", d)?.addEventListener("click", () => { [H, Mi] = nowHM().split(":").map(Number); mode = "m"; show(); });
+    $("#tmok", d).onclick = () => { T[id] = val(); MAN[id] = 1; Rn[id] = $("#tmr", d).value.trim(); M[id] = "l"; closeModal(); draw(); };
+    $("#tmx", d).onclick = () => { M[id] = "p"; delete T[id]; delete MAN[id]; delete Rn[id]; closeModal(); draw(); };
+    show();
   };
   const save = (btn, hol) => busy(btn, async () => {
     const s = {}, t = {}, r = {};

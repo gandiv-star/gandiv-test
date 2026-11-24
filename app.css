@@ -310,6 +310,31 @@ a.srow { color: var(--text); text-decoration: none; }
 .tbl td { padding: 9px 4px; border-top: 1px solid var(--line); text-align: center; }
 .tbl td:first-child, .tbl th:first-child { text-align: left; }
 .tbl td a { color: var(--text); font-weight: 700; }
+.clk-top { display: flex; align-items: center; justify-content: center; gap: 4px; }
+.clk-v { font-size: 46px; font-weight: 800; line-height: 1; border: 0; border-radius: 12px; padding: 4px 10px; background: #F1F3F8; color: var(--muted); min-height: 64px; }
+.clk-v.on { background: #FFF1E6; color: #F97316; }
+.clk-c { font-size: 44px; font-weight: 800; }
+.clk-ap { display: flex; flex-direction: column; gap: 4px; margin-left: 8px; }
+.clk-ap button { border: 1.5px solid var(--line); background: #fff; border-radius: 8px; font-weight: 700; min-height: 30px; padding: 0 10px; color: var(--muted); }
+.clk-ap button.on { border-color: #F97316; color: #F97316; }
+.dial { width: min(260px, 100%); height: auto; aspect-ratio: 1; margin: 0 auto; display: block; touch-action: none; user-select: none; cursor: pointer; }
+.dial .face { fill: #F1F3F8; }
+.dial text { font-size: 17px; font-weight: 700; fill: var(--text); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.dial text.on { fill: #fff; }
+.dial .knob { fill: #F97316; }
+.dial .mh { stroke: #F97316; stroke-width: 3; stroke-linecap: round; }
+.dial .hh { stroke: #94A3B8; stroke-width: 6; stroke-linecap: round; }
+.dial .hh.act { stroke: #F97316; stroke-width: 3; }
+.dial .ctr { fill: #F97316; }
+.tpick { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.tp-h, .tp-m { display: grid; grid-template-columns: 44px auto 44px; align-items: center; justify-items: center; row-gap: 2px; }
+.tp-h .sub, .tp-m .sub { grid-column: 1 / -1; }
+.tp-h b, .tp-m b, .tp-c { font-size: 40px; font-weight: 800; line-height: 1; }
+.tp-m b { color: #F97316; }
+.tp-h .icon-btn, .tp-m .icon-btn { font-size: 26px; font-weight: 700; }
+.mgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.mgrid button { min-height: 48px; border-radius: 12px; border: 1.5px solid var(--line); background: #fff; font-size: 18px; font-weight: 700; color: var(--text); }
+.mgrid button.on { background: #F97316; border-color: #F97316; color: #fff; }
 .big-time-in { font-size: 30px !important; font-weight: 800; text-align: center; min-height: 64px !important; }
 .btn.late-btn { background: #F97316; border-color: #F97316; }
 
