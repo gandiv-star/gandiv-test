@@ -33,6 +33,10 @@ export const MASTER_EMAILS = ["gandivacademy@gmail.com"];
 // ID થી લોગિન (T1, G101...) માટે અંદરનું ઈમેઇલ-ડોમેન. આ સાચું ડોમેન નથી, ફક્ત ઓળખ માટે.
 export const LOGIN_DOMAIN = "id.gandivacademy.app";
 
+// એપ સુરક્ષા (App Check, reCAPTCHA v3 ની જાહેર "site key"). ખાલી = બંધ.
+// mode: "watch" = ફક્ત નજર, "on" = Firebase માં ચાલુ (Enforce) કર્યું
+export const APPCHECK = IS_TEST ? { key: "", mode: "" } : { key: "", mode: "" };
+
 export const ACADEMY = {
   name: "ગાંડિવ એકેડેમી",
   tagline: "યુદ્ધ એજ કલ્યાણ",

@@ -10,7 +10,7 @@ import {
   $, $$, esc, S, ROLES, CAN_CREATE, ID_PREFIX, isMaster, isAdmin, toast, fail, busy, audit,
   modal, closeModal, page, idToEmail, genPwd, waLink, appUrl, ic, route, renderShell, saveCtx
 } from "./core.js";
-import { ACADEMY } from "./config.js";
+import { ACADEMY, APPCHECK } from "./config.js";
 
 const branchName = id => S.branches.find(b => b.id === id)?.name || "";
 const STDS = ["7", "8", "9", "10", "11", "12"];
@@ -45,7 +45,7 @@ page("home", async v => {
 // ================= ગોઠવણ =================
 page("settings", async v => {
   const tab = sessionStorage.getItem("gv_settab") || "branches";
-  const tabs = [["branches", "શાખાઓ"], ["logins", "લોગિન"], ["year", "વર્ષ"]];
+  const tabs = [["branches", "શાખાઓ"], ["logins", "લોગિન"], ["year", "વર્ષ"], ...(isMaster() ? [["backup", "બેકઅપ"]] : [])];
   v.innerHTML = `<h1 class="page-title">ગોઠવણ</h1>
     <div class="tabs" role="tablist">${tabs.map(([k, l]) => `<button type="button" role="tab" class="tab ${k === tab ? "on" : ""}" data-tab="${k}" aria-selected="${k === tab}">${l}</button>`).join("")}</div>
     <div id="tabBody"></div>`;
@@ -53,6 +53,7 @@ page("settings", async v => {
   const body = $("#tabBody", v);
   if (tab === "branches") return branchesTab(body);
   if (tab === "logins") return loginsTab(body);
+  if (tab === "backup" && isMaster()) return backupTab(body);
   return yearTab(body);
 });
 
@@ -114,6 +115,39 @@ function branchForm(b = null) {
 }
 
 // ---------- વર્ષ ----------
+// ---------- બેકઅપ અને સુરક્ષા (ફક્ત માસ્ટર) ----------
+async function backupTab(el) {
+  let b = null;
+  try { const d = await getDoc(doc(db, "meta", "backup")); b = d.exists() ? d.data() : null; } catch {}
+  const z = n => String(n).padStart(2, "0"), dk = d => `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
+  const at = b?.at?.toDate ? b.at.toDate() : b?.at ? new Date(b.at) : null;
+  const age = at ? (Date.now() - at) / 36e5 : 1e9, stale = age > 50, bad = b && (b.ok === false || stale);
+  const when = at ? `${dk(at) === dk(new Date()) ? "આજે" : at.getDate() + "/" + (at.getMonth() + 1)} ${z(at.getHours())}:${z(at.getMinutes())}` : "";
+  const C = b?.counts || {}, n = k => Number(C[k]) || 0;
+  const days = [...Array(7)].map((_, i) => { const d = new Date(Date.now() - (6 - i) * 864e5), k = dk(d), v = b?.days?.[k]; return [d.getDate(), v]; });
+  const ac = APPCHECK.key ? (APPCHECK.mode === "on" ? ["ok", "ચાલુ ✓"] : ["warn", "હાલ: ફક્ત નજર"]) : ["", "હજુ ગોઠવવાનું બાકી"];
+  el.innerHTML = `
+    <div class="card">
+      <div class="bk-head"><span class="bk-ic ${!b ? "" : bad ? "bad" : "ok"}">${ic(bad ? "x" : "check", 22)}</span>
+        <div class="grow"><b>${!b ? "Drive બેકઅપ હજુ ગોઠવાયો નથી" : bad ? (b.ok === false ? "છેલ્લો બેકઅપ નિષ્ફળ" : "2 દિવસથી બેકઅપ નથી થયો") : "Drive બેકઅપ ચાલુ છે"}</b>
+        <span class="sub" style="display:block">${b ? `છેલ્લો: ${when}${b.size ? " • " + (b.size / 1048576).toFixed(1) + " MB" : ""}` : "ગોઠવણ પછી રોજ રાત્રે 2 વાગ્યે આપમેળે થશે"}</span></div></div>
+      ${bad ? `<div class="card-alert" style="margin:0">${b.ok === false ? `કારણ: ${esc(b.err || "-")}<br>` : ""}આનો ફોટો Claude ને મોકલો.</div>` : ""}
+      ${b ? `<div class="grid2 bk-n"><div><span class="sub">વિદ્યાર્થી</span><b>${n("students")}</b></div><div><span class="sub">પહોંચ</span><b>${n("receipts")}</b></div>
+        <div><span class="sub">હાજરી મહિના</span><b>${n("attendance")}</b></div><div><span class="sub">ફોટા</span><b>${n("photos")}</b></div></div>
+        <span class="sub">છેલ્લા 7 દિવસ</span>
+        <div class="bk-days">${days.map(([d, v]) => `<span class="${v === true ? "ok" : v === false ? "bad" : ""}">${d}<br>${v === true ? "✓" : v === false ? "✗" : "–"}</span>`).join("")}</div>
+        <div class="grid2">${b.folderUrl ? `<a class="btn line" href="${esc(b.folderUrl)}" target="_blank" rel="noopener">${ic("dl", 18)} Drive ફોલ્ડર</a>` : ""}
+          ${b.sheetUrl ? `<a class="btn line" href="${esc(b.sheetUrl)}" target="_blank" rel="noopener">${ic("receipt", 18)} Sheet ખોલો</a>` : ""}</div>
+        <span class="sub">Firebase વાંચન: ${Number(b.reads) || 0} / 50,000 (રોજની મફત મર્યાદા)</span>` : ""}
+    </div>
+    <div class="card">
+      <div class="bk-head"><span class="bk-ic ${ac[0]}">${ic("lock", 22)}</span>
+        <div class="grow"><b>એપ સુરક્ષા (App Check)</b><span class="sub" style="display:block">ફક્ત ગાંડિવ એપ જ ડેટા જોઈ શકે</span></div></div>
+      <span class="pill ${ac[0]}" style="align-self:flex-start">${ac[1]}</span>
+      ${APPCHECK.key ? `<span class="sub" style="font-size:11px">This site is protected by reCAPTCHA and the Google Privacy Policy and Terms of Service apply.</span>` : ""}
+    </div>`;
+}
+
 async function yearTab(el) {
   const y0 = Number(S.year.slice(0, 4));
   const opts = [y0 - 1, y0, y0 + 1].map(y => `${y}-${String(y + 1).slice(2)}`);

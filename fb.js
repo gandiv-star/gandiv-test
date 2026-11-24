@@ -1,5 +1,5 @@
 // Firebase શરૂઆત અને જરૂરી ફંક્શન
-import { firebaseConfig } from "./config.js";
+import { firebaseConfig, APPCHECK } from "./config.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getAuth, initializeAuth, inMemoryPersistence, signInWithEmailAndPassword, signOut,
@@ -12,6 +12,13 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 export const app = initializeApp(firebaseConfig);
+// એપ સુરક્ષા: ફક્ત આપણી એપ જ ડેટા સુધી પહોંચે
+if (APPCHECK.key) {
+  try {
+    const m = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js");
+    m.initializeAppCheck(app, { provider: new m.ReCaptchaV3Provider(APPCHECK.key), isTokenAutoRefreshEnabled: true });
+  } catch (e) { console.warn("appcheck", e); }
+}
 export const auth = getAuth(app);
 // ફોનમાં ડેટા સચવાય: નેટ ન હોય ત્યારે પણ એપ ચાલે
 export const db = initializeFirestore(app, {

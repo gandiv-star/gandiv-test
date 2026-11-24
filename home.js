@@ -46,6 +46,7 @@ export function nameMatch(name, q, en = "") {
 }
 
 // ================= ડેશબોર્ડ (Master / સંચાલક) =================
+const onHome = () => ["", "home"].includes(location.hash.replace(/^#\/?/, "").split("/")[0]);
 export async function dashboard(v) {
   if (!S.branches.length) {
     v.innerHTML = `<div class="card hello"><h1>નમસ્તે, ${esc(S.profile?.name || "")}</h1><p>${esc(ACADEMY.name)}</p></div>
@@ -63,7 +64,7 @@ export async function dashboard(v) {
   const batches = bq.docs.map(d => ({ id: d.id, ...d.data() })).filter(b => b.active !== false).sort((a, b) => String(a.start || "99").localeCompare(String(b.start || "99")));
   const grab = id => getDoc(doc(db, "attendance", id)).then(s => s.exists() ? s.data() : null).catch(() => null);
   const [cur, prev] = await Promise.all([Promise.all(batches.map(b => grab(`${b.id}_${ym}`))), Promise.all(batches.map(b => grab(`${b.id}_${pym}`)))]);
-  if (S.me?.loginId !== ME || !v.isConnected) return;
+  if (S.me?.loginId !== ME || !v.isConnected || !onHome()) return;
   const ids = b => roster.filter(r => r.b === b.id).map(r => r.id);
   // જૂની યાદીમાં જન્મ તારીખ ન હોય તો એક વાર વિદ્યાર્થી ફાઇલોમાંથી ભરી દો
   if (isAdmin() && roster.some(r => !("d" in r))) {
@@ -75,7 +76,7 @@ export async function dashboard(v) {
         qs.forEach(d => { const r = roster.find(x => x.id === d.id); if (r && !("d" in r)) { const x = d.data(); up[`list.${d.id}.d`] = x.dob || ""; up[`list.${d.id}.e`] = x.nameEn || ""; } });
         if (!Object.keys(up).length) return;
         await updateDoc(rosterRef(), up);
-        if (S.me?.loginId === ME && v.isConnected && location.hash.replace(/^#\/?/, "").split("/")[0] in { "": 1, home: 1 }) dashboard(v);
+        if (S.me?.loginId === ME && v.isConnected && onHome()) dashboard(v);
       }).catch(e => console.warn("roster fix", e));
     }
   }
