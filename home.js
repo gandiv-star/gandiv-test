@@ -2,7 +2,7 @@
 //  ભાગ 7: Master/સંચાલકનું ડેશબોર્ડ, શોધ, જન્મદિવસનાં પોસ્ટર (4 ડિઝાઇન, canvas થી)
 // =============================================================
 import { db, collection, doc, getDoc, getDocs, query, where, updateDoc } from "./fb.js";
-import { $, $$, esc, S, isAdmin, canAdmit, toast, page, ic, route, money, fmtD, ymd, z2, waLink, buzz, say } from "./core.js";
+import { $, $$, esc, S, isAdmin, isMaster, canAdmit, toast, page, ic, route, money, fmtD, ymd, z2, waLink, buzz, say } from "./core.js";
 import { ACADEMY } from "./config.js";
 import { dueInfo, loadSched } from "./fees.js";
 
@@ -101,7 +101,7 @@ export async function dashboard(v) {
   }));
   const often = Object.values(cnt).filter(n => n >= 3).length;
   const loginsDue = roster.filter(r => r.l === 0).length;
-  const bdays = roster.filter(r => isBday(r.d));
+  const bdays = isMaster() ? [] : roster.filter(r => isBday(r.d)); // જન્મદિવસ: સંચાલક જુએ, માસ્ટર નહીં
   // આ અઠવાડિયું (સોમ–શનિ)
   const t0 = new Date(today + "T00:00:00"), mon = new Date(t0); mon.setDate(t0.getDate() - ((t0.getDay() + 6) % 7));
   const week = ["સો", "મં", "બુ", "ગુ", "શુ", "શ"].map((lbl, i) => {
@@ -207,16 +207,30 @@ async function posterPage(v, sid) {
     <div class="poster-wrap"><button type="button" class="icon-btn pv" id="pprev" aria-label="પાછલી ડિઝાઇન">‹</button>
       <img id="pimg" alt="જન્મદિવસનું પોસ્ટર" class="poster-img"><button type="button" class="icon-btn pv" id="pnext" aria-label="આગળની ડિઝાઇન">›</button></div>
     <p class="hint center" style="margin:0">ડાબે-જમણે ફેરવીને ગમતી ડિઝાઇન પસંદ કરો</p>
+    ${photo ? `<div class="card" style="gap:8px;padding:12px"><b style="font-size:15px">ફોટો ગોઠવો <span class="sub" style="font-weight:400">— ચહેરો બરાબર વચ્ચે લાવો</span></b>
+      <div class="adj">${[["z-", "−", "નાનો"], ["z+", "+", "મોટો"], ["up", "↑", "ઉપર"], ["dn", "↓", "નીચે"], ["lf", "←", "ડાબે"], ["rt", "→", "જમણે"], ["rs", "↺", "મૂળ"]]
+        .map(([k, t, l]) => `<button type="button" data-adj="${k}" aria-label="${l}"><b>${t}</b><span>${l}</span></button>`).join("")}</div></div>` : ""}
     <div class="grid2"><button type="button" class="btn wa" id="pshare">${ic("wa", 18)} ${own ? "સ્ટેટ્સ / શેર" : "વાલીને મોકલો"}</button>
       <button type="button" class="btn line" id="psave">${ic("dl", 18)} પોસ્ટર સાચવો</button></div>`;
-  let canvas = null;
+  let canvas = null, tok = 0;
+  const AK = "gv_badj_" + sid, A0 = { z: 1, dx: 0, dy: 0 };
+  let adj = (() => { try { return { ...A0, ...JSON.parse(localStorage.getItem(AK) || "{}") }; } catch { return { ...A0 }; } })();
   const draw = async () => {
+    const my = ++tok;
     $$("[data-di]", v).forEach(b => b.classList.toggle("on", +b.dataset.di === di));
     localStorage.setItem("gv_bdesign_" + sid, di);
-    canvas = await makePoster(DESIGNS[di][0], { name: s.name, photo, age: ageOn(s.dob), branch: branchName(s.branchId) || "" });
+    const cv = await makePoster(DESIGNS[di][0], { name: s.name, photo, age: ageOn(s.dob), branch: branchName(s.branchId) || "", adj });
+    if (my !== tok) return; canvas = cv;
     if ($("#pimg")) $("#pimg").src = canvas.toDataURL("image/jpeg", .92);
   };
   $$("[data-di]", v).forEach(b => b.onclick = () => { di = +b.dataset.di; buzz("tap"); draw(); });
+  $$("[data-adj]", v).forEach(b => b.onclick = () => {
+    const k = b.dataset.adj, st = .04;
+    if (k === "z-") adj.z = Math.max(.6, +(adj.z - .1).toFixed(2)); else if (k === "z+") adj.z = Math.min(2.5, +(adj.z + .1).toFixed(2));
+    else if (k === "up") adj.dy -= st; else if (k === "dn") adj.dy += st; else if (k === "lf") adj.dx -= st; else if (k === "rt") adj.dx += st;
+    else adj = { ...A0 };
+    localStorage.setItem(AK, JSON.stringify(adj)); buzz("tap"); draw();
+  });
   $("#pprev").onclick = () => { di = (di + 3) % 4; draw(); };
   $("#pnext").onclick = () => { di = (di + 1) % 4; draw(); };
   let x0 = null; const img = $("#pimg");
@@ -252,11 +266,13 @@ function loadFonts() {
   ]);
   return fontsReady;
 }
-const loadImg = src => new Promise(res => { if (!src) return res(null); const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; });
+const IMG = new Map();
+const loadImg = src => { if (!src) return Promise.resolve(null); if (IMG.size > 6) IMG.clear();
+  if (!IMG.has(src)) IMG.set(src, new Promise(res => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; })); return IMG.get(src); };
 function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 const GU = '"Baloo Bhai 2","Noto Sans Gujarati",sans-serif';
 
-export async function makePoster(kind, { name, photo, age, branch }) {
+export async function makePoster(kind, { name, photo, age, branch, adj }) {
   await loadFonts();
   const [ph, logo] = await Promise.all([loadImg(photo), loadImg("logo.png")]);
   const c = document.createElement("canvas"); c.width = 1080; c.height = 1920;
@@ -276,7 +292,11 @@ export async function makePoster(kind, { name, photo, age, branch }) {
   const photoIn = (clip) => { // clip() બનાવે path
     x.save(); clip(); x.clip();
     const b = clip.box;
-    if (ph) { const s = Math.max(b[2] / ph.width, b[3] / ph.height), w = ph.width * s, h = ph.height * s; x.drawImage(ph, b[0] + (b[2] - w) / 2, b[1] + (b[3] - h) / 2, w, h); }
+    if (ph) { // ચહેરો ઉપર હોય — માથું ન કપાય માટે ઉપરથી ગોઠવો; વપરાશકર્તા નાનો/મોટો/ખસેડી શકે
+      const a = adj || {}, z = a.z || 1, s = Math.max(b[2] / ph.width, b[3] / ph.height) * z, w = ph.width * s, h = ph.height * s;
+      x.fillStyle = "#fff"; x.fillRect(...b);
+      const top = h > b[3] ? (b[3] - h) * .12 : (b[3] - h) / 2;
+      x.drawImage(ph, b[0] + (b[2] - w) / 2 + (a.dx || 0) * b[2], b[1] + top + (a.dy || 0) * b[3], w, h); }
     else { const g = x.createLinearGradient(0, b[1], 0, b[1] + b[3]); g.addColorStop(0, "#E0E7FF"); g.addColorStop(1, "#C7D2FE"); x.fillStyle = g; x.fillRect(...b);
       x.fillStyle = "#94A3B8"; x.beginPath(); x.arc(b[0] + b[2] / 2, b[1] + b[3] * .4, b[2] * .18, 0, 7); x.fill();
       x.beginPath(); x.ellipse(b[0] + b[2] / 2, b[1] + b[3] * 1.02, b[2] * .36, b[3] * .32, 0, 0, 7); x.fill();
