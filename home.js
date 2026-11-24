@@ -1,7 +1,7 @@
 // =============================================================
 //  ભાગ 7: Master/સંચાલકનું ડેશબોર્ડ, શોધ, જન્મદિવસનાં પોસ્ટર (4 ડિઝાઇન, canvas થી)
 // =============================================================
-import { db, collection, doc, getDoc, getDocs, query, where } from "./fb.js";
+import { db, collection, doc, getDoc, getDocs, query, where, updateDoc } from "./fb.js";
 import { $, $$, esc, S, isAdmin, canAdmit, toast, page, ic, route, money, fmtD, ymd, z2, waLink, buzz, say } from "./core.js";
 import { ACADEMY } from "./config.js";
 import { dueInfo, loadSched } from "./fees.js";
@@ -65,6 +65,20 @@ export async function dashboard(v) {
   const [cur, prev] = await Promise.all([Promise.all(batches.map(b => grab(`${b.id}_${ym}`))), Promise.all(batches.map(b => grab(`${b.id}_${pym}`)))]);
   if (S.me?.loginId !== ME || !v.isConnected) return;
   const ids = b => roster.filter(r => r.b === b.id).map(r => r.id);
+  // જૂની યાદીમાં જન્મ તારીખ ન હોય તો એક વાર વિદ્યાર્થી ફાઇલોમાંથી ભરી દો
+  if (isAdmin() && roster.some(r => !("d" in r))) {
+    const fk = `gv_rfix_${S.branchId}_${S.year}`;
+    if (!sessionStorage.getItem(fk)) {
+      sessionStorage.setItem(fk, "1");
+      getDocs(query(collection(db, "students"), where("branchId", "==", S.branchId))).then(async qs => {
+        const up = {};
+        qs.forEach(d => { const r = roster.find(x => x.id === d.id); if (r && !("d" in r)) { const x = d.data(); up[`list.${d.id}.d`] = x.dob || ""; up[`list.${d.id}.e`] = x.nameEn || ""; } });
+        if (!Object.keys(up).length) return;
+        await updateDoc(rosterRef(), up);
+        if (S.me?.loginId === ME && v.isConnected && location.hash.replace(/^#\/?/, "").split("/")[0] in { "": 1, home: 1 }) dashboard(v);
+      }).catch(e => console.warn("roster fix", e));
+    }
+  }
   // આજની હાજરી
   const tot = { p: 0, a: 0, l: 0 }; const pending = [];
   batches.forEach((b, i) => {
