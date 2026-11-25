@@ -11,7 +11,7 @@ import { db, collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, que
 import { $, $$, esc, S, isAdmin, toast, fail, busy, audit, page, ic, fmtD, ymd, z2, waLink, modal, closeModal, buzz, chime, say } from "./core.js";
 import { ACADEMY } from "./config.js";
 import { subjectsFor, teachesIn } from "./diary.js";
-import { loadFonts, loadImg } from "./home.js";
+import { topperPoster as drawPoster, posterModal } from "./toppers.js";
 import { studentMonth } from "./att.js";
 
 const branchName = id => S.branches.find(b => b.id === id)?.name || "";
@@ -240,7 +240,7 @@ page("result", async v => {
         ${st.sorted.map(x => { const p = pct(x.m, t.max), r = st.rank[x.id], k = name[x.id] || { n: x.id };
           return `<div class="srow rkrow ${p >= top ? "top" : p < 35 ? "low" : ""}"><span class="rk">${r <= 3 ? ["🥇", "🥈", "🥉"][r - 1] : r}</span>
             <span class="grow"><b>${esc(k.n)}</b><span class="sub" style="display:block">${p}%${p >= top ? " • 🏆 ટોપર" : ""}</span></span>
-            <b class="mkv">${num(x.m)}</b>${k.m ? `<a class="icon-btn wa1" target="_blank" rel="noopener" href="${waLink(k.m, msgFor(t, k, x.m, st, top))}" aria-label="${esc(k.n)} ના વાલીને WhatsApp">${ic("wa", 20)}</a>` : ""}</div>`; }).join("")}
+            <b class="mkv">${num(x.m)}</b>${p >= top ? `<button type="button" class="icon-btn pp1" data-pp="${esc(x.id)}" aria-label="${esc(k.n)} નું અભિનંદન પોસ્ટર">${ic("cam", 20)}</button>` : ""}${k.m ? `<a class="icon-btn wa1" target="_blank" rel="noopener" href="${waLink(k.m, msgFor(t, k, x.m, st, top))}" aria-label="${esc(k.n)} ના વાલીને WhatsApp">${ic("wa", 20)}</a>` : ""}</div>`; }).join("")}
         ${kids.filter(k => t.marks?.[k.id] === "ab").map(k => `<div class="srow rkrow"><span class="rk">—</span><span class="grow"><b>${esc(k.n)}</b><span class="sub" style="display:block">ગેરહાજર</span></span>
             ${k.m ? `<a class="icon-btn wa1" target="_blank" rel="noopener" href="${waLink(k.m, msgFor(t, k, "ab", st, top))}" aria-label="WhatsApp">${ic("wa", 20)}</a>` : ""}</div>`).join("")}
         ${kids.filter(k => !(k.id in (t.marks || {}))).length ? `<p class="hint">${kids.filter(k => !(k.id in (t.marks || {}))).length} ના ગુણ હજુ ભર્યા નથી.</p>` : ""}</div>
@@ -249,6 +249,7 @@ page("result", async v => {
       ${canDel ? `<button type="button" class="btn line danger" id="tdel">ટેસ્ટ ભૂંસો</button>` : ""}`;
     $$(".wa1", v).forEach(a => a.addEventListener("click", () => a.classList.add("sent")));
     $("#poster", v)?.addEventListener("click", e => busy(e.currentTarget, () => topperPoster(t, st, name, top)));
+    $$("[data-pp]", v).forEach(b => b.onclick = () => busy(b, () => personalPoster(b.dataset.pp, name[b.dataset.pp]?.n || b.dataset.pp, t, t.marks[b.dataset.pp], st.rank[b.dataset.pp], top)));
     $("#waall").onclick = () => waQueue(t, st, kids, top);
     $("#tp", v)?.addEventListener("change", async e => {
       const n = Math.max(50, Math.min(100, Number(e.target.value) || 80));
@@ -295,47 +296,25 @@ function waQueue(t, st, kids, top) {
   show();
 }
 
-// ================= ટોપર્સ પોસ્ટર (1080 × 1350) =================
+// ================= ટોપર્સ પોસ્ટર (3 ડિઝાઇન, toppers.js) =================
+const stdOf = bn => { const m = String(bn || "").match(/\d+/); return m ? `ધોરણ ${m[0]}` : ""; };
+async function photoOf(sid) { try { const s = await getDoc(doc(db, "photos", sid)); return s.exists() ? s.data().data : ""; } catch { return ""; } }
+const posterInfo = (t, top, list, photo = "") => ({ title: `${top}% ક્લબ`, sub: t.sub, chapter: t.name && t.name !== "ટેસ્ટ" && t.name !== t.term ? t.name : (t.term || ""),
+  std: stdOf(t.batchName), date: fmtD(t.date), photo, list });
 async function topperPoster(t, st, name, top) {
-  await loadFonts();
-  const logo = await loadImg("logo.png");
-  const tops = st.tops, per = 30, pages = Math.ceil(tops.length / per), files = [];
-  for (let pg = 0; pg < pages; pg++) {
-    const list = tops.slice(pg * per, pg * per + per);
-    const c = document.createElement("canvas"); c.width = 1080; c.height = 1350;
-    const x = c.getContext("2d"); x.scale(3, 3); const W = 360, H = 450, GU = '"Baloo Bhai 2","Noto Sans Gujarati",sans-serif';
-    const g = x.createLinearGradient(0, 0, W, H); g.addColorStop(0, "#0B1440"); g.addColorStop(.55, "#1E2A78"); g.addColorStop(1, "#3B1C6E"); x.fillStyle = g; x.fillRect(0, 0, W, H);
-    for (let k = 0; k < 60; k++) { x.fillStyle = `rgba(255,215,120,${.15 + (k % 5) * .08})`; x.beginPath(); x.arc((k * 97) % W, (k * 53) % 120 + (k % 3) * 140, (k % 3) + .6, 0, 7); x.fill(); }
-    const tx = (s, X, Y, size, fill, o = {}) => { x.save(); let z = size; x.font = `${o.w || 800} ${z}px ${GU}`; while (o.max && x.measureText(s).width > o.max && z > 7) { z -= .5; x.font = `${o.w || 800} ${z}px ${GU}`; } x.textAlign = o.al || "center"; x.textBaseline = "middle"; if (o.sh) { x.shadowColor = "rgba(0,0,0,.4)"; x.shadowBlur = 6; } x.fillStyle = fill; x.fillText(s, X, Y); x.restore(); };
-    if (logo) { x.save(); x.beginPath(); x.arc(W / 2, 34, 20, 0, 7); x.clip(); x.drawImage(logo, W / 2 - 20, 14, 40, 40); x.restore(); }
-    tx(ACADEMY.name + (branchName(S.branchId) ? ", " + branchName(S.branchId) : ""), W / 2, 66, 13, "#FDE68A", { max: 320 });
-    tx(`🏆 ${top}% ક્લબ`, W / 2, 92, 26, "#FFFFFF", { sh: 1 });
-    tx(`${t.sub} • ${t.name}`, W / 2, 116, 13, "#E0E7FF", { w: 600, max: 330 });
-    tx(`${t.batchName} • ${fmtD(t.date)} • કુલ ગુણ ${num(t.max)}`, W / 2, 133, 10, "#C7D2FE", { w: 600, max: 330 });
-    const two = list.length > 12, rows = two ? Math.ceil(list.length / 2) : list.length, avail = 262, rh = Math.min(44, avail / rows), top0 = 152 + (avail - rows * rh) / 2;
-    list.forEach((it, j) => {
-      const col = two ? (j < rows ? 0 : 1) : 0, row = two ? j % rows : j, X = two ? 14 + col * 170 : 30, w = two ? 162 : 300, Y = top0 + row * rh;
-      const r = st.rank[it.id];
-      x.fillStyle = r === 1 ? "rgba(253,224,71,.28)" : "rgba(255,255,255,.10)"; x.beginPath(); x.roundRect ? x.roundRect(X, Y, w, rh - 3, 6) : x.rect(X, Y, w, rh - 3); x.fill();
-      const fs = Math.min(two ? 12 : 17, rh * .5);
-      tx(r <= 3 ? ["🥇", "🥈", "🥉"][r - 1] : String(r), X + 6 + fs * .6, Y + (rh - 3) / 2, fs, "#FDE68A", { al: "center" });
-      tx(short(name[it.id]?.n || it.id), X + 12 + fs * 1.4, Y + (rh - 3) / 2, fs, "#FFFFFF", { al: "left", max: w - 74 });
-      tx(`${num(it.m)}  •  ${pct(it.m, t.max)}%`, X + w - 8, Y + (rh - 3) / 2, fs * .92, "#A7F3D0", { al: "right", w: 700 });
-    });
-    tx(pages > 1 ? `ભાગ ${pg + 1} / ${pages}` : `વર્ગની સરેરાશ ${num(st.avg)} / ${num(t.max)}`, W / 2, 425, 10, "#C7D2FE", { w: 600 });
-    tx("ખૂબ ખૂબ અભિનંદન! 🎉  — ગાંડિવ એકેડેમી પરિવાર", W / 2, 440, 11, "#FDE68A");
-    files.push(await new Promise(res => c.toBlob(b => res(new File([b], `ટોપર્સ_${t.sub}_${t.date}${pages > 1 ? "_" + (pg + 1) : ""}.jpg`, { type: "image/jpeg" })), "image/jpeg", .92)));
-  }
-  const text = `${ACADEMY.name}\n🏆 ${t.sub} • ${t.name} (${fmtD(t.date)})\n${top}% થી વધુ ગુણ મેળવનાર ${tops.length} વિદ્યાર્થીઓને અભિનંદન 🎉`;
-  const prev = modal("ટોપર્સ પોસ્ટર", `${files.map(f => `<img src="${URL.createObjectURL(f)}" alt="ટોપર્સ પોસ્ટર" style="width:100%;border-radius:12px;margin-bottom:8px">`).join("")}
-    <button type="button" class="btn wa big" id="psh">${ic("wa", 18)} ગ્રુપમાં મોકલો (Share)</button><button type="button" class="btn line" id="psv">${ic("dl", 18)} ફોનમાં સાચવો</button>
-    <p class="hint">Share દબાવો → WhatsApp → તમારું ગ્રુપ પસંદ કરો.</p>`);
-  $("#psv", prev).onclick = () => files.forEach(f => { const a = document.createElement("a"); a.href = URL.createObjectURL(f); a.download = f.name; a.click(); });
-  $("#psh", prev).onclick = async () => {
-    try { if (navigator.canShare?.({ files })) { await navigator.share({ files, text }); return; } } catch (e) { if (e?.name === "AbortError") return; }
-    $("#psv", prev).click(); toast("પોસ્ટર સચવાયું. WhatsApp ગ્રુપમાં ગેલેરીમાંથી મોકલો.");
-  };
-  buzz("done");
+  const list = st.tops.map(x => ({ name: short(name[x.id]?.n || x.id), m: num(x.m), max: num(t.max), pct: pct(x.m, t.max), rank: st.rank[x.id] }));
+  const solo = list.length === 1, sid = st.tops[0].id, photo = solo ? await photoOf(sid) : "";
+  const pages = Math.ceil(list.length / 24);
+  await posterModal({ title: "ટોપર્સ પોસ્ટર", hasPhoto: !!photo, adjKey: "gv_badj_" + sid, fileName: `ટોપર્સ_${t.sub}_${t.date}`,
+    text: `${ACADEMY.name}\n🏆 ${t.sub}${t.name ? " • " + t.name : ""} (${fmtD(t.date)})\n${top}% થી વધુ ગુણ મેળવનાર ${list.length} વિદ્યાર્થી${list.length > 1 ? "ઓ" : ""}ને અભિનંદન 🎉`,
+    build: async (kind, adj) => { const out = []; for (let pg = 0; pg < pages; pg++) out.push(await drawPoster(kind, { ...posterInfo(t, top, list, photo), adj }, pg, 24)); return out; } });
+}
+// એક વિદ્યાર્થીનું પોતાનું અભિનંદન પોસ્ટર (ફોટા સાથે)
+export async function personalPoster(sid, nm, t, m, rank, top = 80) {
+  const photo = await photoOf(sid), p = { name: short(nm), m: num(m), max: num(t.max), pct: pct(m, t.max), rank };
+  await posterModal({ title: "અભિનંદન પોસ્ટર", hasPhoto: !!photo, adjKey: "gv_badj_" + sid, fileName: `અભિનંદન_${short(nm)}_${t.sub}`,
+    text: `${ACADEMY.name}\n🏆 ${short(nm)} ને ${t.sub} માં ${num(m)}/${num(t.max)} ગુણ બદલ ખૂબ ખૂબ અભિનંદન 🎉`,
+    build: async (kind, adj) => [await drawPoster(kind, { ...posterInfo(t, top, [p], photo), adj })] });
 }
 
 // ================= પરિણામપત્રક (સત્ર/પ્રિલિમ) — સ્ટાફ =================
@@ -467,8 +446,10 @@ page("myresults", async v => {
       ${list.map(t => { const p = pct(t.m, t.max);
         return `<div class="card" style="gap:4px"><div class="row-between"><b>${esc(t.sub)} • ${esc(t.name)}</b><span class="sub">${fmtD(t.date)}</span></div>
           <div class="row-between"><span style="font-size:22px;font-weight:800">${t.m === "ab" ? "ગેરહાજર" : t.m == null ? "—" : `${num(t.m)} <small class="sub">/ ${num(t.max)}</small>`}</span>${p != null ? `<span class="pill ${p >= 80 ? "ok" : p < 35 ? "bad" : ""}">${p}%</span>` : ""}</div>
-          <span class="sub">વર્ગની સરેરાશ ${num(t.avg)} • સૌથી વધુ ${num(t.hi)}${t.rank ? ` • 🏆 ટોપર • ક્રમ ${t.rank}` : ""}</span></div>`; }).join("") || `<div class="empty">હજુ કોઈ પરિણામ નથી.</div>`}`;
+          <span class="sub">વર્ગની સરેરાશ ${num(t.avg)} • સૌથી વધુ ${num(t.hi)}${t.rank ? ` • 🏆 ટોપર • ક્રમ ${t.rank}` : ""}</span>
+          ${t.rank ? `<button type="button" class="btn line" data-pp="${esc(t.id)}">🎉 અભિનંદન પોસ્ટર • સ્ટેટ્સમાં મૂકો</button>` : ""}</div>`; }).join("") || `<div class="empty">હજુ કોઈ પરિણામ નથી.</div>`}`;
     $$("[data-sub]", v).forEach(c => c.onclick = () => { sub = c.dataset.sub; sessionStorage.setItem("gv_rsub", sub); draw(); });
+    $$("[data-pp]", v).forEach(b => b.onclick = () => { const t = all.find(x => x.id === b.dataset.pp); busy(b, () => personalPoster(sid, s.name, { ...t, batchName: s.batchName }, t.m, t.rank)); });
   };
   draw();
 });
