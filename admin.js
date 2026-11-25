@@ -125,12 +125,12 @@ async function backupTab(el) {
   const when = at ? `${dk(at) === dk(new Date()) ? "આજે" : at.getDate() + "/" + (at.getMonth() + 1)} ${z(at.getHours())}:${z(at.getMinutes())}` : "";
   const C = b?.counts || {}, n = k => Number(C[k]) || 0;
   const days = [...Array(7)].map((_, i) => { const d = new Date(Date.now() - (6 - i) * 864e5), k = dk(d), v = b?.days?.[k]; return [d.getDate(), v]; });
-  const ac = APPCHECK.key ? (APPCHECK.mode === "on" ? ["ok", "ચાલુ ✓"] : ["warn", "હાલ: ફક્ત નજર"]) : ["", "હજુ ગોઠવવાનું બાકી"];
+  const ac = APPCHECK.key ? (APPCHECK.mode === "on" ? ["ok", "ચાલુ ✓"] : ["warn", "હાલ: ફક્ત નજર"]) : ["ok", "Firestore rules થી સુરક્ષા ચાલુ ✓"];
   el.innerHTML = `
     <div class="card">
       <div class="bk-head"><span class="bk-ic ${!b ? "" : bad ? "bad" : "ok"}">${ic(bad ? "x" : "check", 22)}</span>
         <div class="grow"><b>${!b ? "Drive બેકઅપ હજુ ગોઠવાયો નથી" : bad ? (b.ok === false ? "છેલ્લો બેકઅપ નિષ્ફળ" : "2 દિવસથી બેકઅપ નથી થયો") : "Drive બેકઅપ ચાલુ છે"}</b>
-        <span class="sub" style="display:block">${b ? `છેલ્લો: ${when}${b.size ? " • " + (b.size / 1048576).toFixed(1) + " MB" : ""}` : "ગોઠવણ પછી રોજ રાત્રે 2 વાગ્યે આપમેળે થશે"}</span></div></div>
+        <span class="sub" style="display:block">${b ? `છેલ્લો: ${when}${b.size ? " • " + (b.size >= 1048576 ? (b.size / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(b.size / 1024)) + " KB") : ""}` : "ગોઠવણ પછી રોજ રાત્રે 2 વાગ્યે આપમેળે થશે"}</span></div></div>
       ${bad ? `<div class="card-alert" style="margin:0">${b.ok === false ? `કારણ: ${esc(b.err || "-")}<br>` : ""}આનો ફોટો Claude ને મોકલો.</div>` : ""}
       ${b ? `<div class="grid2 bk-n"><div><span class="sub">વિદ્યાર્થી</span><b>${n("students")}</b></div><div><span class="sub">પહોંચ</span><b>${n("receipts")}</b></div>
         <div><span class="sub">હાજરી મહિના</span><b>${n("attendance")}</b></div><div><span class="sub">ફોટા</span><b>${n("photos")}</b></div></div>
@@ -143,6 +143,7 @@ async function backupTab(el) {
     <div class="card">
       <div class="bk-head"><span class="bk-ic ${ac[0]}">${ic("lock", 22)}</span>
         <div class="grow"><b>એપ સુરક્ષા (App Check)</b><span class="sub" style="display:block">ફક્ત ગાંડિવ એપ જ ડેટા જોઈ શકે</span></div></div>
+      ${APPCHECK.key ? "" : `<span class="sub">લોગિન વગર કોઈ ડેટા જોઈ શકતું નથી. વધારાનું App Check પડ હાલ બંધ છે — જરૂર પડે ત્યારે ચાલુ થશે.</span>`}
       <span class="pill ${ac[0]}" style="align-self:flex-start">${ac[1]}</span>
       ${APPCHECK.key ? `<span class="sub" style="font-size:11px">This site is protected by reCAPTCHA and the Google Privacy Policy and Terms of Service apply.</span>` : ""}
     </div>`;
