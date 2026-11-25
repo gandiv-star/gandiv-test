@@ -8,9 +8,9 @@
 //  branchMeta/{શાખા}.topPct = ટોપર મર્યાદા (મૂળ 80)
 // =============================================================
 import { db, collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, writeBatch, serverTimestamp } from "./fb.js";
-import { $, $$, esc, S, isAdmin, toast, fail, busy, audit, page, ic, fmtD, ymd, z2, waLink, modal, closeModal, buzz, chime } from "./core.js";
+import { $, $$, esc, S, isAdmin, toast, fail, busy, audit, page, ic, fmtD, ymd, z2, waLink, modal, closeModal, buzz, chime, say } from "./core.js";
 import { ACADEMY } from "./config.js";
-import { SUBJECTS, teachesIn } from "./diary.js";
+import { subjectsFor, teachesIn } from "./diary.js";
 import { loadFonts, loadImg } from "./home.js";
 import { studentMonth } from "./att.js";
 
@@ -74,7 +74,7 @@ page("tests", async v => {
       <div class="card" style="gap:0"><h2 style="margin-bottom:4px">${esc(b.name)} • ${list.length} ટેસ્ટ</h2>
         ${list.map(t => `<a class="srow" href="#/${t.n ? "result" : "marks"}/${encodeURIComponent(t.id)}">
           <span class="tm" style="min-width:48px">${+t.date.slice(8)}<small>${["જાન્યુ", "ફેબ્રુ", "માર્ચ", "એપ્રિ", "મે", "જૂન", "જુલા", "ઑગ", "સપ્ટે", "ઑક્ટો", "નવે", "ડિસે"][+t.date.slice(5, 7) - 1]}</small></span>
-          <span class="grow"><b>${esc(t.sub)} • ${esc(t.name)}</b><span class="sub" style="display:block">${esc(t.term || TYPE[t.type] || "")} • કુલ ${t.max}${t.n ? ` • સરેરાશ ${num(t.avg)}` : ""}</span></span>
+          <span class="grow"><b>${esc(t.sub)} • ${esc(t.name)}</b><span class="sub" style="display:block">${t.term ? esc(t.term) + " • " : ""}કુલ ${t.max}${t.n ? ` • સરેરાશ ${num(t.avg)}` : ""}</span></span>
           ${t.n ? `${t.top ? `<span class="pill ok">🏆 ${t.top}</span>` : ""}` : `<span class="pill warn">ગુણ ભરો</span>`}</a>`).join("") || `<p class="muted" style="margin:8px 0">હજુ કોઈ ટેસ્ટ નથી.</p>`}</div>`;
     $$("[data-bt]", v).forEach(c => c.onclick = () => { bid = c.dataset.bt; sessionStorage.setItem("gv_tbatch", bid); draw(); });
     $("#newt").onclick = () => newTest(b);
@@ -83,34 +83,36 @@ page("tests", async v => {
 });
 
 function newTest(b) {
-  const today = ymd(), last = JSON.parse(localStorage.getItem("gv_lasttest") || "{}");
-  let sub = (b.tt && Object.values(b.tt).flat().find(s => s.t === S.me.loginId)?.sub) || last.sub || "", type = last.type || "weekly", term = "";
+  const today = ymd(), last = JSON.parse(localStorage.getItem("gv_lasttest") || "{}"), subs = subjectsFor(b);
+  let sub = (b.tt && Object.values(b.tt).flat().find(s => s.t === S.me.loginId)?.sub) || (subs.includes(last.sub) ? last.sub : ""), term = "";
   const d = modal("નવી ટેસ્ટ", `
     <form id="tf" class="form" novalidate>
       <p class="sub" style="margin:0">${esc(b.name)}</p>
-      <div class="field"><span class="lbl">વિષય</span><div class="chips">${SUBJECTS.map(x => `<button type="button" class="chip ${sub === x ? "on" : ""}" data-sub="${esc(x)}">${esc(x)}</button>`).join("")}</div>
-        <input id="tsx" placeholder="બીજો વિષય હોય તો લખો" style="margin-top:8px"></div>
+      <div class="field"><span class="lbl">વિષય</span><div class="chips">${subs.map(x => `<button type="button" class="chip ${sub === x ? "on" : ""}" data-sub="${esc(x)}">${esc(x)}</button>`).join("")}
+        <button type="button" class="chip" id="tsxo">+ બીજો</button></div>
+        <input id="tsx" placeholder="બીજો વિષય લખો" style="margin-top:8px" hidden></div>
       <div class="grid2"><div class="field"><label for="tdt">તારીખ</label><input id="tdt" type="date" value="${today}"></div>
         <div class="field"><label for="tmx">કુલ ગુણ</label><input id="tmx" type="number" inputmode="decimal" min="1" step="0.5" value="${esc(last.max || "")}" placeholder="25"></div></div>
-      <div class="field"><span class="lbl">પ્રકાર</span><div class="chips">${TYPES.map(([k, l]) => `<button type="button" class="chip ${type === k ? "on" : ""}" data-ty="${k}">${l}</button>`).join("")}</div></div>
-      <div class="field" id="termf" ${type === "term" || type === "prelim" ? "" : "hidden"}><span class="lbl">કઈ પરીક્ષા? <span class="sub">(પરિણામપત્રકમાં બધા વિષય સાથે આવશે)</span></span>
+      <div class="field"><label for="tnm">ટેસ્ટનું નામ / પ્રકરણ <span class="sub">(વૈકલ્પિક)</span></label><input id="tnm" placeholder="પ્રકરણ 4"></div>
+      <label class="check"><input type="checkbox" id="tterm"> સત્ર / પ્રિલિમ પરીક્ષાનું પેપર છે <span class="sub">(પરિણામપત્રક માટે)</span></label>
+      <div class="field" id="termf" hidden><span class="lbl">કઈ પરીક્ષા?</span>
         <div class="chips">${TERMS.map(x => `<button type="button" class="chip" data-term="${esc(x)}">${esc(x)}</button>`).join("")}</div>
         <input id="ttx" placeholder="બીજું નામ" style="margin-top:8px"></div>
-      <div class="field"><label for="tnm">ટેસ્ટનું નામ / પ્રકરણ</label><input id="tnm" placeholder="ટેસ્ટ 6 — પ્રકરણ 4"></div>
       <button class="btn primary big" type="submit">ટેસ્ટ બનાવો અને ગુણ ભરો →</button>
     </form>`);
-  $$("[data-sub]", d).forEach(c => c.onclick = () => { sub = c.dataset.sub; $("#tsx", d).value = ""; $$("[data-sub]", d).forEach(x => x.classList.toggle("on", x === c)); });
-  $$("[data-ty]", d).forEach(c => c.onclick = () => { type = c.dataset.ty; $$("[data-ty]", d).forEach(x => x.classList.toggle("on", x === c)); $("#termf", d).hidden = !(type === "term" || type === "prelim"); });
+  $$("[data-sub]", d).forEach(c => c.onclick = () => { sub = c.dataset.sub; $("#tsx", d).value = ""; $("#tsx", d).hidden = true; $$("[data-sub]", d).forEach(x => x.classList.toggle("on", x === c)); });
+  $("#tsxo", d).onclick = () => { $("#tsx", d).hidden = false; $("#tsx", d).focus(); sub = ""; $$("[data-sub]", d).forEach(x => x.classList.remove("on")); };
+  $("#tterm", d).onchange = e => { $("#termf", d).hidden = !e.target.checked; };
   $$("[data-term]", d).forEach(c => c.onclick = () => { term = c.dataset.term; $("#ttx", d).value = ""; $$("[data-term]", d).forEach(x => x.classList.toggle("on", x === c)); });
   $("#tf", d).onsubmit = e => {
     e.preventDefault();
-    const su = $("#tsx", d).value.trim() || sub, date = $("#tdt", d).value, max = Number($("#tmx", d).value);
-    const tm = type === "term" || type === "prelim" ? ($("#ttx", d).value.trim() || term) : "";
-    const name = $("#tnm", d).value.trim() || (tm || TYPE[type]);
+    const su = $("#tsx", d).value.trim() || sub, date = $("#tdt", d).value, max = Number($("#tmx", d).value), isTerm = $("#tterm", d).checked;
+    const tm = isTerm ? ($("#ttx", d).value.trim() || term) : "", type = isTerm ? "term" : "test";
+    const name = $("#tnm", d).value.trim() || tm || "ટેસ્ટ";
     if (!su) return toast("વિષય પસંદ કરો.", true);
     if (!date) return toast("તારીખ લખો.", true);
-    if (!(max > 0) || max > 1000) return toast("કુલ ગુણ સાચા લખો.", true);
-    if ((type === "term" || type === "prelim") && !tm) return toast("કઈ પરીક્ષા છે તે પસંદ કરો.", true);
+    if (!(max > 0) || max > 1000) return toast("કુલ ગુણ લખો.", true);
+    if (isTerm && !tm) return toast("કઈ પરીક્ષા છે તે પસંદ કરો.", true);
     busy($('[type="submit"]', d), async () => {
       const tid = `${b.id}_${date.replace(/-/g, "")}_${Date.now().toString(36).slice(-5)}`;
       const t = { branchId: S.branchId, yearId: S.year, batchId: b.id, batchName: b.name, sub: su, date, max, name, type, term: tm,
@@ -119,7 +121,7 @@ function newTest(b) {
       w.set(doc(db, "tests", tid), t);
       w.set(idxRef(b.id), { branchId: S.branchId, yearId: S.year, batchId: b.id, list: { [tid]: { sub: su, name, date, max, type, term: tm, n: 0, avg: 0, hi: 0, top: 0, by: S.me.loginId } } }, { merge: true });
       try { await w.commit(); } catch (e2) { return fail(e2); }
-      localStorage.setItem("gv_lasttest", JSON.stringify({ sub: su, type, max }));
+      localStorage.setItem("gv_lasttest", JSON.stringify({ sub: su, max }));
       audit("test.add", tid, `${su} • ${name}`);
       closeModal(); buzz("done"); location.hash = `#/marks/${encodeURIComponent(tid)}`;
     });
@@ -174,7 +176,13 @@ page("marks", async v => {
     const go = () => busy(e.currentTarget, async () => {
       const marks = {}; kids.forEach(k => { if (M[k.id] !== "") marks[k.id] = M[k.id]; });
       const r = await saveMarks(tid, t, marks, kids, top);
-      if (r) { buzz("done"); chime([660, 880, 990]); location.hash = `#/result/${encodeURIComponent(tid)}`; }
+      if (r) {
+        buzz("done");
+        const st = stats({ ...t, marks }, top), nm = Object.fromEntries(kids.map(k => [k.id, first(k.n)]));
+        if (st.tops.length) { chime([523, 659, 784, 1047]); setTimeout(() => say(`અભિનંદન ${st.tops.slice(0, 3).map(x => nm[x.id]).join(", ")}${st.tops.length > 3 ? ` અને બીજા ${st.tops.length - 3}` : ""}!`), 700); }
+        else chime([660, 880]);
+        location.hash = `#/result/${encodeURIComponent(tid)}`;
+      }
     });
     if (!empty.length) return go();
     const d = modal("બધાના ગુણ નથી ભર્યા", `<p>${empty.length} વિદ્યાર્થીના ગુણ બાકી છે: ${empty.slice(0, 5).map(k => esc(first(k.n))).join(", ")}${empty.length > 5 ? "…" : ""}. તેમના ગુણ પછી ભરી શકાશે.</p>
@@ -414,10 +422,24 @@ function loadH2C() {
 export async function getResults(sid) { try { const s = await getDoc(resRef(sid)); return s.exists() ? s.data() : null; } catch { return null; } }
 const resList = R => Object.entries(R?.list || {}).filter(([, t]) => t).map(([id, t]) => ({ id, ...t })).sort((a, b) => (b.date + b.id).localeCompare(a.date + a.id));
 // હોમ: છેલ્લા 10 દિવસનું નવું પરિણામ
+// નવું પરિણામ: એક જ વાર અવાજ — ટોપર હોય તો "અભિનંદન" નામ સાથે
+function cheerOnce(sid, fresh, nm) {
+  try {
+    const k = "gv_cheer_" + sid, seen = JSON.parse(localStorage.getItem(k) || "[]"), nw = fresh.filter(t => !seen.includes(t.id));
+    if (!nw.length) return;
+    localStorage.setItem(k, JSON.stringify([...seen, ...nw.map(t => t.id)].slice(-60)));
+    const who = nm || (S.me.role === "student" ? first(S.profile?.name) : "");
+    const top = nw.find(t => t.rank), t = top || nw[0];
+    const line = top ? `અભિનંદન ${who}! ${top.sub} માં ${num(top.m)} ગુણ, વર્ગમાં ${top.rank} મો ક્રમ!` : `${who ? who + " નું " : ""}${t.sub} નું પરિણામ આવ્યું છે.`;
+    const go = () => { if (window.speechSynthesis?.speaking) return setTimeout(go, 800); if (top) chime([523, 659, 784, 1047]); setTimeout(() => say(line), top ? 600 : 0); };
+    setTimeout(go, 1500);
+  } catch {}
+}
 export async function familyResultHtml(sid, nm = "") {
   const R = await getResults(sid), from = (() => { const d = new Date(); d.setDate(d.getDate() - 10); return ymd(d); })();
   const fresh = resList(R).filter(t => t.date >= from && t.n && t.m != null).slice(0, 3);
   if (!fresh.length) return "";
+  cheerOnce(sid, fresh, nm);
   return `<a class="card rescard" href="#/myresults/${encodeURIComponent(sid)}"><div class="row-between"><h2>${ic("trophy", 20)} નવું પરિણામ${nm ? " • " + esc(nm) : ""}</h2>${ic("chev", 18)}</div>
     ${fresh.map(t => { const p = pct(t.m, t.max);
       return `<div class="resrow"><span class="grow"><b>${esc(t.sub)}</b> <span class="sub">• ${esc(t.name)}</span>

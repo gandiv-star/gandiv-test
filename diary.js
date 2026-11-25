@@ -11,6 +11,19 @@ import { $, $$, esc, S, isAdmin, toast, fail, busy, audit, page, ic, route, fmtD
 import { ACADEMY } from "./config.js";
 
 export const SUBJECTS = ["ગણિત", "વિજ્ઞાન", "અંગ્રેજી", "ગુજરાતી", "સામાજિક વિજ્ઞાન", "હિન્દી", "સંસ્કૃત", "ભૌતિક વિજ્ઞાન", "રસાયણ વિજ્ઞાન", "જીવ વિજ્ઞાન", "નામાના મૂળતત્વો", "આંકડાશાસ્ત્ર", "અર્થશાસ્ત્ર", "વાણિજ્ય વ્યવસ્થા", "કમ્પ્યુટર"];
+// ધોરણ/પ્રવાહ પ્રમાણે ફક્ત જરૂરી વિષય (ટાઇમટેબલમાં વપરાયેલા વિષય પહેલાં)
+const SUB_STD = ["ગણિત", "વિજ્ઞાન", "અંગ્રેજી", "ગુજરાતી", "સામાજિક વિજ્ઞાન", "હિન્દી", "સંસ્કૃત"];
+const SUB_SCI = ["ભૌતિક વિજ્ઞાન", "રસાયણ વિજ્ઞાન", "જીવ વિજ્ઞાન", "ગણિત", "અંગ્રેજી", "ગુજરાતી", "કમ્પ્યુટર"];
+const SUB_COM = ["નામાના મૂળતત્વો", "આંકડાશાસ્ત્ર", "અર્થશાસ્ત્ર", "વાણિજ્ય વ્યવસ્થા", "અંગ્રેજી", "ગુજરાતી", "કમ્પ્યુટર"];
+export function subjectsFor(b) {
+  const txt = `${b?.stream || ""} ${b?.name || ""} ${b?.course || ""}`.toLowerCase(), std = Number(b?.std) || 0;
+  let base = SUBJECTS;
+  if (std && std <= 10) base = SUB_STD;
+  else if (/commerce|કોમર્સ/.test(txt)) base = SUB_COM;
+  else if (/science|સાયન્સ|neet|jee|gujcet/.test(txt) || std >= 11) base = SUB_SCI;
+  const used = [...new Set(Object.values(b?.tt || {}).flat().map(s => s?.sub).filter(Boolean))];
+  return [...new Set([...used, ...base])];
+}
 const DAYS = ["રવિ", "સોમ", "મંગળ", "બુધ", "ગુરુ", "શુક્ર", "શનિ"];
 const DAYS_FULL = ["રવિવાર", "સોમવાર", "મંગળવાર", "બુધવાર", "ગુરુવાર", "શુક્રવાર", "શનિવાર"];
 const HW = { y: "કર્યું ✓", n: "નથી કર્યું ✗", h: "અડધું ½" };
@@ -144,8 +157,8 @@ page("tt", async v => {
       <form id="sf" class="form" novalidate>
         <div class="grid2"><div class="field"><label for="ss">શરૂ</label><input id="ss" type="time" value="${esc(s0)}"></div>
           <div class="field"><label for="se">પૂરું</label><input id="se" type="time" value="${esc(cur?.e || plusMin(s0, 60))}"></div></div>
-        <div class="field"><span class="lbl">વિષય</span><div class="chips">${SUBJECTS.map(x => `<button type="button" class="chip ${cur?.sub === x ? "on" : ""}" data-sub="${esc(x)}">${esc(x)}</button>`).join("")}</div>
-          <input id="sx" placeholder="બીજો વિષય હોય તો લખો" value="${esc(cur && !SUBJECTS.includes(cur.sub) ? cur.sub : "")}" style="margin-top:8px"></div>
+        <div class="field"><span class="lbl">વિષય</span><div class="chips">${subjectsFor(b).map(x => `<button type="button" class="chip ${cur?.sub === x ? "on" : ""}" data-sub="${esc(x)}">${esc(x)}</button>`).join("")}</div>
+          <input id="sx" placeholder="બીજો વિષય હોય તો લખો" value="${esc(cur && !subjectsFor(b).includes(cur.sub) ? cur.sub : "")}" style="margin-top:8px"></div>
         <div class="field"><label for="st">શિક્ષક</label><select id="st"><option value="">— પછી નક્કી કરીશું —</option>
           ${teachers.map(t => `<option value="${esc(t.loginId)}" ${(cur ? cur.t : b.teacherId) === t.loginId ? "selected" : ""}>${esc(t.name)} (${esc(t.loginId)})</option>`).join("")}</select></div>
         <div class="grid2">${cur ? `<button type="button" class="btn line danger" id="sdel">તાસ કાઢો</button>` : `<span></span>`}<button class="btn primary" type="submit">બરાબર</button></div>
@@ -215,7 +228,7 @@ page("diary", async v => {
       <button type="button" class="btn ${e.at ? "line" : "primary"}" data-edit="${s.k}">${ic("edit", 18)} ${e.at ? "ફેરફાર કરો" : mine ? "ડાયરી લખો" : "લખો (બદલીમાં)"}</button></div>`;
     const due0 = e.due || (s.sub ? nextClass(b, s.sub, date) : addDays(date, 1));
     return `<form class="card dslot" data-form="${s.k}" novalidate>${head}
-      ${!s.sub ? `<div class="field"><span class="lbl">વિષય</span><div class="chips">${SUBJECTS.map(x => `<button type="button" class="chip" data-fsub="${esc(x)}">${esc(x)}</button>`).join("")}</div></div>` : ""}
+      ${!s.sub ? `<div class="field"><span class="lbl">વિષય</span><div class="chips">${subjectsFor(b).map(x => `<button type="button" class="chip" data-fsub="${esc(x)}">${esc(x)}</button>`).join("")}</div></div>` : ""}
       <div class="field"><label for="tp${s.k}">આજે શું ભણાવ્યું <span class="sub">(વિદ્યાર્થી/વાલી જુએ)</span></label>
         <div class="micwrap"><textarea id="tp${s.k}" rows="2" placeholder="પ્રકરણ 4: દ્વિઘાત સમીકરણ — સૂત્રની રીત">${esc(e.topic || "")}</textarea><button type="button" class="icon-btn mic" data-mic="tp${s.k}" aria-label="બોલીને લખો">${ic("mic", 20)}</button></div></div>
       <div class="field"><label for="hw${s.k}">ગૃહકાર્ય <span class="sub">(ન હોય તો ખાલી રાખો)</span></label>

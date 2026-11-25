@@ -457,3 +457,4 @@ dialog#modal::backdrop { background: rgba(17, 24, 39, .45); }
 @media print { #print .rcd { border: 2px solid #000; font-size: 13pt; max-width: none; } #print .rcd-h img { width: 70px; height: 70px; } }
 .resrow { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); }
 .resm { display: flex; align-items: baseline; gap: 4px; flex: none; } .resm b { font-size: 20px; } .resm small { color: var(--muted); } .resm .pill { margin-left: 4px; }
+[hidden] { display: none !important; }
