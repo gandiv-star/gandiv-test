@@ -105,6 +105,7 @@ export async function attHome(v) {
       ${sm ? `<span class="pill ok">✓</span>` : `<span class="btn ${ME.role === "teacher" ? "primary" : "line"}" style="min-height:40px">હાજરી લો</span>`}</a>`).join("")
       || `<div class="empty">${ME.role === "teacher" ? "તમને હજુ કોઈ બેચ સોંપાઈ નથી. સંચાલકને કહો." : "હજુ કોઈ બેચ નથી."}</div>`}
     ${diaryCard}
+    <a class="btn line big" href="#/tests">${ic("trophy", 18)} ટેસ્ટ, ગુણ અને પરિણામ</a>
     ${ME.role === "teacher" ? `<button type="button" class="link-btn" id="aall">${showAll ? "ફક્ત મારી બેચ બતાવો" : "બીજા શિક્ષકની બેચ (તેઓ ન હોય ત્યારે)"}</button>` : ""}
     <div class="note info">${ic("info", 20)}<div>નેટ ન હોય તો પણ હાજરી લઈ શકાય. ફોનમાં સચવાશે અને નેટ આવે એટલે આપમેળે મોકલાઈ જશે.</div></div>
     ${often.length ? `<div class="card" style="gap:0"><h2 style="margin-bottom:6px">વારંવાર ગેરહાજર (છેલ્લા 30 દિવસ)</h2>

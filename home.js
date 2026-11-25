@@ -133,7 +133,7 @@ export async function dashboard(v) {
       ${todo.map(([n, c, t, s, h]) => `<a class="todo" href="${h}"><span class="n" style="background:${c}">${n}</span><span class="grow"><b>${esc(t)}</b><span class="sub" style="display:block">${esc(s)}</span></span><span class="sub">→</span></a>`).join("")}</div>`
       : `<div class="card center"><b>આજે કંઈ બાકી નથી ✓</b></div>`}
     ${bdays.length ? `<a class="bday" href="#/bday"><span style="font-size:30px">🎂</span><span class="grow"><b>આજે ${bdays.length} જન્મદિવસ</b><span class="sub" style="display:block">${bdays.slice(0, 3).map(r => `${esc(shortName(r.n))} (${esc(r.bn || "ધો. " + r.s)})`).join(" • ")}</span></span><span class="btn line" style="min-height:38px">શુભેચ્છા</span></a>` : ""}
-    <div class="qa"><a href="#/admit"><span>${ic("plus", 24)}</span>નવો પ્રવેશ</a><a href="#/pay"><span>${ic("rupee", 24)}</span>ફી લો</a><a href="#/att"><span>${ic("check", 24)}</span>હાજરી</a><a href="#/batches"><span>${ic("batch", 24)}</span>બેચ</a></div>
+    <div class="qa"><a href="#/admit"><span>${ic("plus", 24)}</span>નવો પ્રવેશ</a><a href="#/pay"><span>${ic("rupee", 24)}</span>ફી લો</a><a href="#/att"><span>${ic("check", 24)}</span>હાજરી</a><a href="#/tests"><span>${ic("trophy", 24)}</span>ટેસ્ટ</a><a href="#/batches"><span>${ic("batch", 24)}</span>બેચ</a></div>
     <div class="card" style="gap:6px"><div class="row-between"><h2>આ અઠવાડિયાની હાજરી</h2><span class="sub">સો–શ</span></div>
       <div class="wk">${week.map(w => `<div><i style="height:${w.pct == null ? 3 : Math.max(6, w.pct * .8)}px;background:${w.pct == null ? "#E2E8F0" : w.pct < 75 ? "#F97316" : "#15803D"}"></i><span class="sub">${w.pct == null ? "" : w.pct + "%"}</span><span class="sub">${w.lbl}</span></div>`).join("")}</div></div>
     <div class="grid2">
@@ -254,7 +254,7 @@ async function posterPage(v, sid) {
 
 // ---------- પોસ્ટર canvas પર દોરો (1080 × 1920, WhatsApp સ્ટેટ્સ માપ) ----------
 let fontsReady = null;
-function loadFonts() {
+export function loadFonts() {
   if (fontsReady) return fontsReady;
   if (!document.querySelector("#poster-fonts")) {
     const l = document.createElement("link"); l.id = "poster-fonts"; l.rel = "stylesheet";
@@ -268,7 +268,7 @@ function loadFonts() {
   return fontsReady;
 }
 const IMG = new Map();
-const loadImg = src => { if (!src) return Promise.resolve(null); if (IMG.size > 6) IMG.clear();
+export const loadImg = src => { if (!src) return Promise.resolve(null); if (IMG.size > 6) IMG.clear();
   if (!IMG.has(src)) IMG.set(src, new Promise(res => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; })); return IMG.get(src); };
 function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 const GU = '"Baloo Bhai 2","Noto Sans Gujarati",sans-serif';

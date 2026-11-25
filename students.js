@@ -17,6 +17,7 @@ import { feeTab, loadSched, dueLine, isFeeStaff } from "./fees.js";
 import { loadStudentAtt, studentMonth, calHtml, todayCard, canAtt } from "./att.js";
 import { bdayCard } from "./home.js";
 import { familyDiaryHtml, wireYt } from "./diary.js";
+import { familyResultHtml } from "./results.js";
 
 const STDS = ["7", "8", "9", "10", "11", "12"];
 const COURSES = ["NEET", "GUJCET", "JEE", "NMMS", "CET"];
@@ -673,9 +674,9 @@ export function studentHomeHtml(s, photo = "", sched = null, live = false, att =
       <a class="tile ${sid ? "" : "soon"}" ${sid ? `href="#/attrep/${encodeURIComponent(sid)}/${ym}"` : ""}>${ic("check", 28)}<span>મારી હાજરી</span></a>
       <a class="tile ${live ? "" : "soon"}" ${live ? `href="#/myfees"` : ""}>${ic("receipt", 28)}<span>ફી અને પહોંચો</span></a>
       <a class="tile ${sid ? "" : "soon"}" ${sid ? `href="#/mydiary/${encodeURIComponent(sid)}"` : ""}>${ic("book", 28)}<span>ગૃહકાર્ય, લેક્ચર</span></a>
-      <a class="tile soon">${ic("edit", 28)}<span>ટેસ્ટ, ગુણ</span></a>
+      <a class="tile ${sid ? "" : "soon"}" ${sid ? `href="#/myresults/${encodeURIComponent(sid)}"` : ""}>${ic("trophy", 28)}<span>ટેસ્ટ, ગુણ</span></a>
     </div>
-    <p class="muted center">ટેસ્ટ, પરિણામ અને સૂચનાઓ આગળના ભાગમાં ઉમેરાશે.</p>`;
+    <p class="muted center">સૂચનાઓ આગળના ભાગમાં ઉમેરાશે.</p>`;
 }
 
 page("viewas", async v => {
@@ -748,8 +749,8 @@ export function printForm(s, photo) {
 export async function familyHome(v) {
   if (S.me.role === "student") {
     const [ss, ps, sched] = await Promise.all([getDoc(doc(db, "students", S.me.loginId)), getDoc(doc(db, "photos", S.me.loginId)).catch(() => null), loadSched()]);
-    const [att, dia] = ss.exists() ? await Promise.all([loadStudentAtt(ss.data()), familyDiaryHtml(ss.data(), S.me.loginId).catch(() => "")]) : [null, ""];
-    v.innerHTML = ss.exists() ? studentHomeHtml(ss.data(), ps?.exists() ? ps.data().data : "", sched, true, att, S.me.loginId, dia) : `<div class="card hello"><h1>નમસ્તે, ${esc(S.profile?.name || "")}</h1></div>`;
+    const [att, dia, res] = ss.exists() ? await Promise.all([loadStudentAtt(ss.data()), familyDiaryHtml(ss.data(), S.me.loginId).catch(() => ""), familyResultHtml(S.me.loginId).catch(() => "")]) : [null, "", ""];
+    v.innerHTML = ss.exists() ? studentHomeHtml(ss.data(), ps?.exists() ? ps.data().data : "", sched, true, att, S.me.loginId, res + dia) : `<div class="card hello"><h1>નમસ્તે, ${esc(S.profile?.name || "")}</h1></div>`;
     wireYt(v);
     return;
   }
@@ -763,12 +764,13 @@ export async function familyHome(v) {
   // એક જ બેચનાં બે બાળકો: લેક્ચર/ટાઇમટેબલ એક જ વાર બતાવો
   await Promise.all(kids.map(async (k, i) => {
     const shared = kids.slice(0, i).some(o => o.batchId && o.batchId === k.batchId);
-    [k.att, k.dia] = await Promise.all([loadStudentAtt(k).catch(() => null), familyDiaryHtml(k, k.id, shared).catch(() => "")]);
+    const nm = String(k.name || "").split(" ")[1] || k.name;
+    [k.att, k.dia, k.res] = await Promise.all([loadStudentAtt(k).catch(() => null), familyDiaryHtml(k, k.id, shared).catch(() => ""), familyResultHtml(k.id, kids.length > 1 ? nm : "").catch(() => "")]);
   }));
   v.innerHTML = `
     ${kids.map(k => bdayCard({ name: k.name, dob: k.dob }, k.id, "parent")).join("")}
     ${kids.map(k => todayCard(k.att, k.id, String(k.name || "").split(" ")[1] || k.name)).join("")}
-    ${kids.map(k => k.dia).join("")}
+    ${kids.map(k => k.res + k.dia).join("")}
     <div class="card hello"><h1>નમસ્તે 🙏</h1><p>${esc(branchName(S.branchId))} • ${kids.length > 1 ? `${kids.length} બાળકો` : "વાલી"}</p></div>
     ${kids.map(k => {
       const ym = ymd().slice(0, 7), m = studentMonth(k.att, k.id, ym);
@@ -776,9 +778,10 @@ export async function familyHome(v) {
         <div class="grow"><b>${esc(k.name)}</b><span class="sub">${esc(k.id)} • ${cls(k.std, k.batchName)}</span></div></div>
         ${dueLine(k.fee, sched)}${num(k.fee?.pay) ? ` <a class="link-btn" href="#/myfees">પહોંચો જુઓ</a>` : ""}
         ${k.att ? `<div class="row-between"><h2>હાજરી: ${["જાન્યુઆરી", "ફેબ્રુઆરી", "માર્ચ", "એપ્રિલ", "મે", "જૂન", "જુલાઈ", "ઑગસ્ટ", "સપ્ટેમ્બર", "ઑક્ટોબર", "નવેમ્બર", "ડિસેમ્બર"][+ym.slice(5) - 1]}</h2>${m.pct != null ? `<b style="color:${m.pct < 75 ? "#DC2626" : "#15803D"}">${m.pct}%</b>` : ""}</div>${calHtml(m, ym)}` : ""}
-        <div class="grid2"><a class="btn line" href="#/attrep/${encodeURIComponent(k.id)}/${ym}">હાજરી રિપોર્ટ</a><a class="btn line" href="#/mydiary/${encodeURIComponent(k.id)}">ગૃહકાર્ય, લેક્ચર</a></div></div>`;
+        <div class="grid2"><a class="btn line" href="#/attrep/${encodeURIComponent(k.id)}/${ym}">હાજરી રિપોર્ટ</a><a class="btn line" href="#/mydiary/${encodeURIComponent(k.id)}">ગૃહકાર્ય, લેક્ચર</a></div>
+        <a class="btn line" href="#/myresults/${encodeURIComponent(k.id)}">${ic("trophy", 18)} ટેસ્ટ અને પરિણામ</a></div>`;
     }).join("") || `<div class="empty">હજુ કોઈ બાળક જોડાયેલું નથી.</div>`}
-    <p class="muted center">ટેસ્ટ, પરિણામ અને સૂચનાઓ આગળના ભાગમાં ઉમેરાશે.</p>`;
+    <p class="muted center">સૂચનાઓ આગળના ભાગમાં ઉમેરાશે.</p>`;
   wireYt(v);
 }
 
