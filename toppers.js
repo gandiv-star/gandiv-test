@@ -102,10 +102,9 @@ export async function topperPoster(kind, it, page = 0, per = 24) {
     x.strokeStyle = gold(0, H); x.lineWidth = 2.5; rr(7, 7, W - 14, H - 14, 14); x.stroke(); x.lineWidth = .8; rr(12, 12, W - 24, H - 24, 11); x.stroke();
     trophy(W / 2, 22, .78);
     tx("અભિનંદન!", W / 2, 80, 30, gold(66, 96), { sh: "rgba(0,0,0,.6)", blur: 8 });
-    rr(W / 2 - 62, 97, 124, 19, 10); x.fillStyle = "rgba(245,197,66,.16)"; x.fill(); x.lineWidth = .8; x.strokeStyle = "#F5C542"; x.stroke();
-    tx(it.title, W / 2, 106.5, 10.5, "#FDE68A", { w: 800 });
-    tx(it.sub + (it.chapter ? "  •  " + it.chapter : ""), W / 2, 128, 13, "#FFFFFF", { max: 300 });
-    tx(meta(it), W / 2, 143, 9, "rgba(255,255,255,.75)", { w: 600 });
+    x.fillStyle = gold(100, 103); x.fillRect(W / 2 - 50, 101, 100, 1.2);
+    tx(it.sub + (it.chapter ? "  •  " + it.chapter : ""), W / 2, 118, 15, "#FFFFFF", { max: 300 });
+    tx(meta(it), W / 2, 137, 9.5, "rgba(255,255,255,.8)", { w: 600 });
     names(152, 360, {
       solo(p, cy) {
         x.save(); x.shadowColor = "rgba(245,197,66,.7)"; x.shadowBlur = 26; x.beginPath(); x.arc(W / 2, cy - 30, 62, 0, 7); x.fillStyle = gold(cy - 92, cy + 32); x.fill(); x.restore();
@@ -142,8 +141,7 @@ export async function topperPoster(kind, it, page = 0, per = 24) {
     x.fillStyle = "#0A153F"; x.beginPath(); x.moveTo(18, by); x.lineTo(40, by); x.lineTo(40, by + 38); x.lineTo(18, by + 38); x.lineTo(28, by + 19); x.fill();
     x.beginPath(); x.moveTo(W - 18, by); x.lineTo(W - 40, by); x.lineTo(W - 40, by + 38); x.lineTo(W - 18, by + 38); x.lineTo(W - 28, by + 19); x.fill();
     tx("અભિનંદન!", W / 2, by + 11, 25, gold(by - 4, by + 24));
-    tx(it.title, W / 2, by + 52, 12, "#B91C1C", { w: 800 });
-    tx(it.sub + (it.chapter ? "  •  " + it.chapter : ""), W / 2, by + 70, 14, "#0F1E5A", { max: 300 });
+    tx(it.sub + (it.chapter ? "  •  " + it.chapter : ""), W / 2, by + 60, 16, "#0F1E5A", { max: 300 });
     tx(meta(it), W / 2, by + 85, 9, "#64748B", { w: 600 });
     names(152, 360, {
       solo(p, cy) {
@@ -174,7 +172,7 @@ export async function topperPoster(kind, it, page = 0, per = 24) {
     for (let i = 0; i < 26; i++) star(R() * W, R() * 360, R() * 3 + 1.2, `rgba(255,255,255,${.35 + R() * .5})`);
     star(W / 2, 46, 30, "#FDE047"); star(W / 2, 46, 20, "#FACC15");
     tx("Star Performers", W / 2, 92, 22, "#FFFFFF", { fam: '"Pacifico",cursive', w: 400, sh: "rgba(0,0,0,.35)" });
-    tx("અભિનંદન! " + it.title, W / 2, 116, 12, "#FEF08A", { w: 800 });
+    tx("અભિનંદન!", W / 2, 116, 13, "#FEF08A", { w: 800 });
     tx(it.sub + (it.chapter ? "  •  " + it.chapter : ""), W / 2, 134, 13.5, "#FFFFFF", { max: 300 });
     tx(meta(it), W / 2, 148, 9, "rgba(255,255,255,.85)", { w: 600 });
     names(156, 352, {

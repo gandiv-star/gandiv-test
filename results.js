@@ -276,7 +276,7 @@ function msgFor(t, k, m, st, top) {
   if (m === "ab") return `${ACADEMY.name}\n${t.sub} • ${t.name} (${fmtD(t.date)})\n${nm} આ ટેસ્ટમાં ગેરહાજર હતા. વર્ગની સરેરાશ ${num(st.avg)}/${num(t.max)}.`;
   const p = pct(m, t.max);
   return `${ACADEMY.name}\n${t.sub} • ${t.name} (${fmtD(t.date)}) નું પરિણામ\n${nm}: ${num(m)} / ${num(t.max)} (${p}%)` +
-    (p >= top ? `\n🏆 ${top}% ક્લબ • વર્ગમાં ${st.rank[k.id]} મો ક્રમ` : "") +
+    (p >= top ? `\n🏆 વર્ગમાં ${st.rank[k.id]} મો ક્રમ` : "") +
     `\nવર્ગની સરેરાશ ${num(st.avg)} • સૌથી વધુ ${num(st.hi)}` + (p < 35 ? `\nવધુ મહેનતની જરૂર છે. ઘરે ધ્યાન રાખવા વિનંતી 🙏` : p >= top ? `\nખૂબ અભિનંદન 🎉` : "");
 }
 // બધા વાલીને એક પછી એક (WhatsApp ખૂલે, પાછા આવો એટલે આગળનું)
@@ -299,14 +299,14 @@ function waQueue(t, st, kids, top) {
 // ================= ટોપર્સ પોસ્ટર (3 ડિઝાઇન, toppers.js) =================
 const stdOf = bn => { const m = String(bn || "").match(/\d+/); return m ? `ધોરણ ${m[0]}` : ""; };
 async function photoOf(sid) { try { const s = await getDoc(doc(db, "photos", sid)); return s.exists() ? s.data().data : ""; } catch { return ""; } }
-const posterInfo = (t, top, list, photo = "") => ({ title: `${top}% ક્લબ`, sub: t.sub, chapter: t.name && t.name !== "ટેસ્ટ" && t.name !== t.term ? t.name : (t.term || ""),
+const posterInfo = (t, top, list, photo = "") => ({ title: "", sub: t.sub, chapter: t.name && t.name !== "ટેસ્ટ" && t.name !== t.term ? t.name : (t.term || ""),
   std: stdOf(t.batchName), date: fmtD(t.date), photo, list });
 async function topperPoster(t, st, name, top) {
   const list = st.tops.map(x => ({ name: short(name[x.id]?.n || x.id), m: num(x.m), max: num(t.max), pct: pct(x.m, t.max), rank: st.rank[x.id] }));
   const solo = list.length === 1, sid = st.tops[0].id, photo = solo ? await photoOf(sid) : "";
   const pages = Math.ceil(list.length / 24);
   await posterModal({ title: "ટોપર્સ પોસ્ટર", hasPhoto: !!photo, adjKey: "gv_badj_" + sid, fileName: `ટોપર્સ_${t.sub}_${t.date}`,
-    text: `${ACADEMY.name}\n🏆 ${t.sub}${t.name ? " • " + t.name : ""} (${fmtD(t.date)})\n${top}% થી વધુ ગુણ મેળવનાર ${list.length} વિદ્યાર્થી${list.length > 1 ? "ઓ" : ""}ને અભિનંદન 🎉`,
+    text: `${ACADEMY.name}\n🏆 ${t.sub}${t.name ? " • " + t.name : ""} (${fmtD(t.date)})\nટોપર્સને ખૂબ ખૂબ અભિનંદન 🎉`,
     build: async (kind, adj) => { const out = []; for (let pg = 0; pg < pages; pg++) out.push(await drawPoster(kind, { ...posterInfo(t, top, list, photo), adj }, pg, 24)); return out; } });
 }
 // એક વિદ્યાર્થીનું પોતાનું અભિનંદન પોસ્ટર (ફોટા સાથે)
@@ -335,7 +335,7 @@ function rcardHtml({ s, rows, term, att, remark, rank, top, branch }) {
     <table class="rcd-t"><thead><tr><th>વિષય</th><th>કુલ ગુણ</th><th>મેળવેલ</th><th>ટકા</th></tr></thead><tbody>
       ${rows.map(r => `<tr><td>${esc(r.sub)}</td><td>${num(r.max)}</td><td>${r.m === "ab" ? "ગેરહાજર" : r.m == null ? "—" : num(r.m)}</td><td>${typeof r.m === "number" ? pct(r.m, r.max) + "%" : "—"}</td></tr>`).join("")}
       <tr class="tot"><td>કુલ</td><td>${num(tot)}</td><td>${allAb ? "—" : num(got)}</td><td>${allAb ? "—" : p + "%"}</td></tr></tbody></table>
-    <div class="rcd-kv"><span><i>પરિણામ:</i> ${allAb ? "—" : p >= 35 ? "પાસ" : "વધુ મહેનત જરૂરી"}</span>${rank && p >= top ? `<span><i>🏆 ${top}% ક્લબ • વર્ગમાં ક્રમ:</i> ${rank}</span>` : ""}</div>
+    <div class="rcd-kv"><span><i>પરિણામ:</i> ${allAb ? "—" : p >= 35 ? "પાસ" : "વધુ મહેનત જરૂરી"}</span>${rank && p >= top ? `<span><i>🏆 વર્ગમાં ક્રમ:</i> ${rank}</span>` : ""}</div>
     <div class="rcd-rm"><i>ટિપ્પણી:</i> ${esc(remark || "")}</div>
     <div class="rcd-sg"><span>વર્ગ શિક્ષક</span><span>સંચાલક</span><span>વાલીની સહી</span></div></div>`;
 }
