@@ -9,6 +9,7 @@ import { db, collection, doc, getDoc, getDocs, query, where, writeBatch, serverT
 import { $, $$, esc, S, isAdmin, toast, fail, busy, audit, page, ic, route, fmtD, ymd, z2, waLink, modal, closeModal, buzz, chime } from "./core.js";
 import { ACADEMY } from "./config.js";
 import { isBday } from "./home.js";
+import { diaryHomeCard, teachesIn } from "./diary.js";
 
 const ST = { p: "હાજર", a: "ગેરહાજર", l: "મોડો", h: "રજા" };
 const NEXT = { p: "a", a: "l", l: "h", h: "p" };
@@ -54,10 +55,11 @@ export async function attHome(v) {
   const date = sessionStorage.getItem("gv_attdate") || ymd();
   const ym = date.slice(0, 7), dd = date.slice(8, 10), isToday = date === ymd();
   const [batches, roster] = await Promise.all([loadBatches(), loadRoster()]);
-  const mine = ME.role === "teacher" ? batches.filter(b => b.teacherId === ME.loginId) : batches;
+  const mine = ME.role === "teacher" ? batches.filter(b => teachesIn(b, ME.loginId)) : batches;
   const showAll = ME.role !== "teacher" || sessionStorage.getItem("gv_attall") === "1";
   const list = showAll ? batches : mine;
   const atts = await Promise.all(list.map(b => getAtt(b.id, ym)));
+  const diaryCard = await diaryHomeCard(ME.role === "teacher" ? mine : list, date).catch(() => "");
   const prevAtts = isAdmin() ? await Promise.all(list.map(b => getAtt(b.id, shiftYm(ym, -1)))) : [];
   const tot = { p: 0, a: 0, l: 0, h: 0 }; let taken = 0;
   const rows = list.map((b, i) => {
@@ -102,6 +104,7 @@ export async function attHome(v) {
       <span class="grow"><b>${esc(b.name)}</b><span class="sub" style="display:block">${sm?.hol ? "વર્ગ નહીં (રજા)" : sm ? `${sm.p + sm.l}/${ids.length} હાજર${sm.l ? ` • ${sm.l} મોડા` : ""}${sm.a ? ` • ${sm.a} ગેર.` : ""}` : `${ids.length} વિદ્યાર્થી${b.teacherName && ME.role !== "teacher" ? " • " + esc(b.teacherName) : ""}`}</span></span>
       ${sm ? `<span class="pill ok">✓</span>` : `<span class="btn ${ME.role === "teacher" ? "primary" : "line"}" style="min-height:40px">હાજરી લો</span>`}</a>`).join("")
       || `<div class="empty">${ME.role === "teacher" ? "તમને હજુ કોઈ બેચ સોંપાઈ નથી. સંચાલકને કહો." : "હજુ કોઈ બેચ નથી."}</div>`}
+    ${diaryCard}
     ${ME.role === "teacher" ? `<button type="button" class="link-btn" id="aall">${showAll ? "ફક્ત મારી બેચ બતાવો" : "બીજા શિક્ષકની બેચ (તેઓ ન હોય ત્યારે)"}</button>` : ""}
     <div class="note info">${ic("info", 20)}<div>નેટ ન હોય તો પણ હાજરી લઈ શકાય. ફોનમાં સચવાશે અને નેટ આવે એટલે આપમેળે મોકલાઈ જશે.</div></div>
     ${often.length ? `<div class="card" style="gap:0"><h2 style="margin-bottom:6px">વારંવાર ગેરહાજર (છેલ્લા 30 દિવસ)</h2>
@@ -268,7 +271,8 @@ page("take", async v => {
           return `<div class="srow"><span class="grow"><b>${esc(k.n)}</b><span class="sub ${st === "a" ? "due-over" : "late"}" style="display:block">${st === "a" ? `ગેરહાજર • આ મહિને ${m.a} વાર` : `મોડા ${esc(t[k.id])}${late ? ` (${late} મિ.)` : ""} • આ મહિને ${m.l} વાર`}</span></span>
             ${k.m ? `<a class="btn wa" style="min-height:40px" target="_blank" rel="noopener" href="${waLink(k.m, msg)}" data-sent>${ic("wa", 18)} મોકલો</a>` : `<span class="sub">નંબર નથી</span>`}</div>`;
         }).join("")}</div>` : ""}
-      <div class="grid2"><a class="btn line" href="#/take/${encodeURIComponent(batchId)}/${date}" id="reopen">બદલવી છે? ફરી ખોલો</a><a class="btn primary" href="#/att">બીજી બેચ</a></div>`;
+      ${hol ? "" : `<a class="btn primary big" href="#/diary/${encodeURIComponent(batchId)}/${date}">${ic("edit", 18)} આજની ડાયરી લખો</a>`}
+      <div class="grid2"><a class="btn line" href="#/take/${encodeURIComponent(batchId)}/${date}" id="reopen">બદલવી છે? ફરી ખોલો</a><a class="btn ${hol ? "primary" : "line"}" href="#/att">બીજી બેચ</a></div>`;
     $$("[data-sent]", v).forEach(a => a.addEventListener("click", () => setTimeout(() => { a.textContent = "✓ મોકલ્યું"; a.classList.replace("wa", "line"); }, 400)));
     $("#reopen").onclick = e => { e.preventDefault(); route(); };
     window.scrollTo(0, 0);

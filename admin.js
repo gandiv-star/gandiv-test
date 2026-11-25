@@ -315,10 +315,10 @@ page("batches", async v => {
   const batches = bs.docs.map(d => ({ id: d.id, ...d.data() }))
     .sort((a, b) => (a.active === false) - (b.active === false) || stdOrder(a.std) - stdOrder(b.std) || String(a.start).localeCompare(String(b.start)));
   v.innerHTML = `<div class="row-between"><h1 class="page-title">બેચ</h1><span class="muted">${esc(branchName(S.branchId))} • ${esc(S.year)}</span></div>
-    <div class="card">${batches.map(b => `<button type="button" class="brow ${b.active === false ? "off" : ""}" data-b="${b.id}">
+    <div class="card">${batches.map(b => `<div class="brow-w"><button type="button" class="brow ${b.active === false ? "off" : ""}" data-b="${b.id}">
         <span class="std">${esc(b.course || b.std)}</span>
         <span class="grow"><b>${esc(b.name)}</b><span class="muted">${esc(b.start || "")}${b.end ? " – " + esc(b.end) : ""}${b.teacherName ? " • " + esc(b.teacherName) : ""}${b.active === false ? " • બંધ" : ""}</span></span>
-      </button>`).join("") || `<p class="muted">આ વર્ષની હજુ કોઈ બેચ નથી.</p>`}</div>
+      </button><a class="btn line tt-btn" href="#/tt/${encodeURIComponent(b.id)}">${ic("clock", 18)} ટાઇમટેબલ${b.tt ? ` <small>${Object.values(b.tt).reduce((a, x) => a + (x || []).length, 0)}</small>` : ""}</a></div>`).join("") || `<p class="muted">આ વર્ષની હજુ કોઈ બેચ નથી.</p>`}</div>
     ${isAdmin() ? `<button type="button" class="btn primary big" id="nb">+ નવી બેચ</button>` : ""}`;
   $("#nb", v)?.addEventListener("click", () => batchForm(null, teachers));
   $$("[data-b]", v).forEach(x => x.onclick = () => isAdmin() && batchForm(batches.find(b => b.id === x.dataset.b), teachers));
