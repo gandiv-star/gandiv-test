@@ -38,7 +38,7 @@ export const LOGIN_DOMAIN = "id.gandivacademy.app";
 export const APPCHECK = IS_TEST ? { key: "", mode: "" } : { key: "", mode: "" };
 
 // ફોન નોટિફિકેશન (મફત): Firebase ની Web Push કી અને Apps Script web app નું સરનામું. ખાલી = બંધ.
-export const PUSH = IS_TEST ? { vapid: "", url: "" } : { vapid: "", url: "" };
+export const PUSH = IS_TEST ? { vapid: "BOZbf-ixBU5q_16W75w4LXtjBSpuO9TazEvHvufeWxK_raxMxAMspLKZaCVeHz-4LGhsvTAnMy0N494dKfTysbY", url: "https://script.google.com/macros/s/AKfycbw8drbEolBhX9EkTjch6KfBAbN7NLBlpjujOuxYxh6OB51JkRkJAHR_KfNNKYKep-c9/exec" } : { vapid: "", url: "" };
 
 export const ACADEMY = {
   name: "ગાંડિવ એકેડેમી",
