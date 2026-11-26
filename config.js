@@ -37,6 +37,9 @@ export const LOGIN_DOMAIN = "id.gandivacademy.app";
 // mode: "watch" = ફક્ત નજર, "on" = Firebase માં ચાલુ (Enforce) કર્યું
 export const APPCHECK = IS_TEST ? { key: "", mode: "" } : { key: "", mode: "" };
 
+// ફોન નોટિફિકેશન (મફત): Firebase ની Web Push કી અને Apps Script web app નું સરનામું. ખાલી = બંધ.
+export const PUSH = IS_TEST ? { vapid: "", url: "" } : { vapid: "", url: "" };
+
 export const ACADEMY = {
   name: "ગાંડિવ એકેડેમી",
   tagline: "યુદ્ધ એજ કલ્યાણ",

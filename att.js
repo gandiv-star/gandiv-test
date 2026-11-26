@@ -10,6 +10,7 @@ import { $, $$, esc, S, isAdmin, toast, fail, busy, audit, page, ic, route, fmtD
 import { ACADEMY } from "./config.js";
 import { isBday } from "./home.js";
 import { diaryHomeCard, teachesIn } from "./diary.js";
+import { autoAttendance, homeNoticeHtml, wirePushAsk } from "./notify.js";
 
 const ST = { p: "હાજર", a: "ગેરહાજર", l: "મોડો", h: "રજા" };
 const NEXT = { p: "a", a: "l", l: "h", h: "p" };
@@ -83,12 +84,14 @@ export async function attHome(v) {
     often = Object.entries(cnt).filter(([, n]) => n >= 3).sort((a, b) => b[1] - a[1]).slice(0, 15)
       .map(([sid, n]) => ({ r: roster.find(x => x.id === sid), n })).filter(x => x.r);
   }
+  const noticeHtml = ME.role === "teacher" ? await homeNoticeHtml().catch(() => "") : "";
   if (S.me?.loginId !== ME.loginId || !v.isConnected) return; // વચ્ચે બહાર નીકળ્યા/પાનું બદલાયું
   const d0 = new Date(date + "T00:00:00");
   v.innerHTML = `
     ${ME.role === "teacher" ? `<div class="card hello"><h1>નમસ્તે, ${esc(String(PROF?.name || "").split(" ")[0])} 🙏</h1>
       <p>${["રવિવાર", "સોમવાર", "મંગળવાર", "બુધવાર", "ગુરુવાર", "શુક્રવાર", "શનિવાર"][d0.getDay()]}, ${d0.getDate()} ${MONTHS_FULL[d0.getMonth()]} • ${list.length} બેચ</p></div>`
       : `<h1 class="page-title">${isToday ? "આજની હાજરી" : "હાજરી: " + fmtD(date)}</h1>`}
+    ${noticeHtml}
     ${(() => { const ids = new Set(mine.map(b => b.id)), bd = roster.filter(r => isBday(r.d) && (ME.role !== "teacher" || ids.has(r.b)));
       return ME.role === "teacher" && bd.length ? `<a class="bday" href="#/bday"><span style="font-size:28px">🎂</span><span class="grow"><b>આજે ${bd.length} વિદ્યાર્થીનો જન્મદિવસ</b><span class="sub" style="display:block">${bd.slice(0, 3).map(r => esc(r.n)).join(" • ")}</span></span></a>` : ""; })()}
     <div class="row-between" style="gap:8px">
@@ -113,6 +116,7 @@ export async function attHome(v) {
         ${r.m ? `<a class="icon-btn" style="color:#15803D" target="_blank" rel="noopener" aria-label="WhatsApp" href="${waLink(r.m, `${ACADEMY.name}\nનમસ્તે, ${r.n} છેલ્લા 30 દિવસમાં ${n} દિવસ ગેરહાજર રહ્યા છે. કૃપા કરી નિયમિત મોકલો 🙏`)}">${ic("wa", 20)}</a>` : ""}</div>`).join("")}</div>` : ""}
     ${list.length ? `<div class="card" style="gap:0"><h2 style="margin-bottom:6px">માસિક રિપોર્ટ</h2>
       ${list.map(b => `<a class="srow" href="#/battrep/${encodeURIComponent(b.id)}/${ym}"><span class="grow"><b>${esc(b.name)}</b></span><span class="sub">${esc(MONTHS[+ym.slice(5) - 1])} →</span></a>`).join("")}</div>` : ""}`;
+  wirePushAsk(v);
   $("#adate").onchange = e => { if (e.target.value) { sessionStorage.setItem("gv_attdate", e.target.value); route(); } };
   $("#atoday", v)?.addEventListener("click", () => { sessionStorage.removeItem("gv_attdate"); route(); });
   $("#aall", v)?.addEventListener("click", () => { sessionStorage.setItem("gv_attall", showAll ? "0" : "1"); route(); });
@@ -249,6 +253,7 @@ page("take", async v => {
     if (res === "wait") offline = true;
     audit(hol ? "att.holiday" : (old ? "att.edit" : "att.take"), `${batchId}_${date}`, hol ? "રજા" : `${Object.values(s).filter(x => x === "a").length} ગેર, ${Object.values(s).filter(x => x === "l").length} મોડા`);
     buzz("done"); chime([660, 880]);
+    if (!hol) autoAttendance({ kids, s, t, prev: old, date, batchName: b.name });
     done(hol, s, t, r, offline);
   });
   // સચવાઈ ગયા પછી: વાલીને WhatsApp

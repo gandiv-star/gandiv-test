@@ -98,11 +98,11 @@ const NAV = {
 };
 // મેનુમાં ન દેખાય પણ ખૂલી શકે એવાં પાનાં
 const EXTRA = {
-  admin: ["admit", "student", "viewas", "old", "entry", "assign", "pay", "oldpay", "receipt", "sched", "batches", "take", "attrep", "battrep", "search", "bday", "tt", "diary", "hwchk", "mydiary", "tests", "marks", "result", "rcard", "myresults", "myrcard"],
+  admin: ["admit", "student", "viewas", "old", "entry", "assign", "pay", "oldpay", "receipt", "sched", "batches", "take", "attrep", "battrep", "search", "bday", "tt", "diary", "hwchk", "mydiary", "tests", "marks", "result", "rcard", "myresults", "myrcard", "notices", "notice", "notice-new"],
   dataEntry: ["admit", "student", "viewas", "entry", "assign", "fees", "pay", "oldpay", "receipt", "search"],
-  staff: ["student", "pay", "oldpay", "receipt", "take", "attrep", "battrep", "search", "bday", "diary", "hwchk", "tt", "tests", "marks", "result", "rcard"],
-  teacher: ["att", "take", "attrep", "battrep", "student", "search", "bday", "diary", "hwchk", "tt", "tests", "marks", "result", "rcard"],
-  family: ["myfees", "receipt", "attrep", "bday", "mydiary", "myresults", "myrcard"]
+  staff: ["student", "pay", "oldpay", "receipt", "take", "attrep", "battrep", "search", "bday", "diary", "hwchk", "tt", "tests", "marks", "result", "rcard", "notices", "notice", "notice-new"],
+  teacher: ["att", "take", "attrep", "battrep", "student", "search", "bday", "diary", "hwchk", "tt", "tests", "marks", "result", "rcard", "notices", "notice", "notice-new"],
+  family: ["myfees", "receipt", "attrep", "bday", "mydiary", "myresults", "myrcard", "notices", "notice"]
 };
 const extraFor = r => (["master", "branchAdmin"].includes(r) ? EXTRA.admin : ["accountant", "receptionist"].includes(r) ? EXTRA.staff
   : ["student", "parent"].includes(r) ? EXTRA.family : EXTRA[r] || []);
@@ -142,6 +142,7 @@ export const ICON = {
   play: '<path d="M8 5v14l11-7z"/>',
   trophy: '<path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8M10 17h4"/>',
   chev: '<path d="m9 6 6 6-6 6"/>',
+  bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
   book: '<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5M8 7h7"/>'
 };
 export const ic = (n, size = 22) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n] || ""}</svg>`;
@@ -277,6 +278,7 @@ export function renderShell() {
         <div class="top-who"><b>${esc(S.profile?.name || S.me.loginId)}</b><span>${brSel} ${IS_TEST ? '<em class="test-tag">ટેસ્ટિંગ</em>' : ""}</span></div>
         <span class="role-chip">${esc(meta.label)}</span>
         ${["student", "parent"].includes(r) ? "" : `<a class="icon-btn" href="#/search" aria-label="શોધો">${ic("search")}</a>`}
+        ${r === "dataEntry" ? "" : `<a class="icon-btn bell" href="#/notices" id="bellBtn" aria-label="નોટિસ">${ic("bell")}<span class="bdg" hidden></span></a>`}
         <button type="button" class="icon-btn" id="sndBtn" aria-label="${soundOn() ? "અવાજ બંધ કરો" : "અવાજ ચાલુ કરો"}">${ic(soundOn() ? "snd" : "mute")}</button>
         <button type="button" class="icon-btn top-out" id="topOut" aria-label="બહાર નીકળો">${ic("out")}</button>
       </header>
@@ -298,6 +300,7 @@ export function renderShell() {
   if (sel) sel.onchange = () => { S.branchId = sel.value; localStorage.setItem("gv_branch", S.branchId); route(); };
   window.onhashchange = route;
   route();
+  window.dispatchEvent(new Event("gv:shell"));
 }
 
 export function route() {
@@ -309,7 +312,7 @@ export function route() {
   $$("[data-nav]").forEach(a => a.classList.toggle("on", a.dataset.nav === S.page));
   // પાનાનો છેલ્લો ફોટો તરત બતાવો, નવી માહિતી આવે એટલે બદલાઈ જાય
   // ફોર્મવાળાં પાનાંનો જૂનો ફોટો નહીં (ભૂલથી જૂના ફોટામાં લખાઈ ન જાય)
-  const NOSNAP = ["admit", "pay", "oldpay", "sched", "assign", "receipt", "tt", "diary", "hwchk", "marks", "rcard"];
+  const NOSNAP = ["admit", "pay", "oldpay", "sched", "assign", "receipt", "tt", "diary", "hwchk", "marks", "rcard", "notice-new", "notices", "notice"];
   let last = null; try { if (!NOSNAP.includes(S.page)) last = localStorage.getItem(PK()); } catch {}
   v.innerHTML = last || SKEL;
   // જૂનો ફોટો દેખાય ત્યાં સુધી બટન દબાય નહીં

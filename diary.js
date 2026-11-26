@@ -9,6 +9,7 @@
 import { db, collection, doc, getDoc, getDocs, setDoc, updateDoc, query, where, writeBatch, serverTimestamp } from "./fb.js";
 import { $, $$, esc, S, isAdmin, toast, fail, busy, audit, page, ic, route, fmtD, ymd, z2, waLink, modal, closeModal, buzz, chime } from "./core.js";
 import { ACADEMY } from "./config.js";
+import { autoHomework } from "./notify.js";
 
 export const SUBJECTS = ["ગણિત", "વિજ્ઞાન", "અંગ્રેજી", "ગુજરાતી", "સામાજિક વિજ્ઞાન", "હિન્દી", "સંસ્કૃત", "ભૌતિક વિજ્ઞાન", "રસાયણ વિજ્ઞાન", "જીવ વિજ્ઞાન", "નામાના મૂળતત્વો", "આંકડાશાસ્ત્ર", "અર્થશાસ્ત્ર", "વાણિજ્ય વ્યવસ્થા", "કમ્પ્યુટર"];
 // ધોરણ/પ્રવાહ પ્રમાણે ફક્ત જરૂરી વિષય (ટાઇમટેબલમાં વપરાયેલા વિષય પહેલાં)
@@ -335,6 +336,7 @@ page("hwchk", async v => {
       const w = writeBatch(db), P0 = `days.${dd}.${k}`;
       w.update(dRef(bid, ym), { [`${P0}.chk`]: chk, [`${P0}.chkBy`]: S.me.loginId, [`${P0}.chkAt`]: serverTimestamp() });
       const r = await commitSoft(w); if (r === false) return;
+      autoHomework({ kids, chk, prev: e.chk || {}, e, date });
       e.chk = chk; e.chkBy = S.me.loginId;
       audit("hw.check", `${bid}_${date}_${k}`, `${Object.values(chk).filter(x => x === "n").length} નથી કર્યું`);
       buzz("done"); chime([660, 880]); done(chk, r === "offline");

@@ -13,6 +13,7 @@ import { ACADEMY } from "./config.js";
 import { subjectsFor, teachesIn } from "./diary.js";
 import { topperPoster as drawPoster, posterModal } from "./toppers.js";
 import { studentMonth } from "./att.js";
+import { autoResult } from "./notify.js";
 
 const branchName = id => S.branches.find(b => b.id === id)?.name || "";
 const TYPES = [["weekly", "સાપ્તાહિક ટેસ્ટ"], ["monthly", "માસિક ટેસ્ટ"], ["term", "સત્ર પરીક્ષા"], ["prelim", "પ્રિલિમ"]];
@@ -210,6 +211,7 @@ async function saveMarks(tid, t, marks, kids, top) {
     const r = await Promise.race([p.then(() => true), new Promise(ok => setTimeout(() => ok("wait"), 2500))]);
     if (r === "wait") toast("નેટ ધીમું છે: ફોનમાં સચવાયું, નેટ આવે એટલે મોકલાશે.");
     audit("test.marks", tid, `${st.n} ગુણ • સરેરાશ ${st.avg}`);
+    autoResult({ t, marks, prev: t.marks || {}, kids, rank: st.rank, top });
     return true;
   } catch (e) { fail(e); return false; }
 }
