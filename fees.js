@@ -13,6 +13,7 @@ import {
   money, fmtD, ymd, waLink, modal, closeModal, buzz, say
 } from "./core.js";
 import { ACADEMY } from "./config.js";
+import { autoReceipt } from "./notify.js";
 
 export const MODES = [["cash", "રોકડ"], ["upi", "UPI"], ["cheque", "ચેક"], ["bank", "બેંક"]];
 const modeName = m => (MODES.find(x => x[0] === m) || [, m])[1];
@@ -235,6 +236,7 @@ async function payPage(v, old) {
         try {
           const r = await saveReceipt(st, { ...F, legacy: old });
           audit(old ? "receipt.legacy" : "receipt.create", r.id, `${r.name} • ${r.amount}`);
+          autoReceipt(r);
           buzz("done");
           if (old) {
             sessionStorage.setItem("gv_olddate", F.date);

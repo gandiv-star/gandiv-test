@@ -5,6 +5,7 @@ import { db, collection, doc, getDoc, getDocs, query, where, updateDoc } from ".
 import { $, $$, esc, S, isAdmin, isMaster, canAdmit, toast, page, ic, route, money, fmtD, ymd, z2, waLink, buzz, say } from "./core.js";
 import { ACADEMY } from "./config.js";
 import { dueInfo, loadSched } from "./fees.js";
+import { homeNoticeHtml, wirePushAsk } from "./notify.js";
 
 const rosterRef = () => doc(db, "rosters", `${S.branchId}_${S.year}`);
 const branchName = id => S.branches.find(b => b.id === id)?.name || "";
@@ -118,11 +119,14 @@ export async function dashboard(v) {
     often && [often, "#6D28D9", "વારંવાર ગેરહાજર", "30 દિવસમાં 3+ વાર", "#/att"],
     loginsDue && [loginsDue, "#0E7490", "લોગિન બનાવવાના બાકી", "જૂનાં ફોર્મ", "#/old"]
   ].filter(Boolean);
+  const noticeHtml = await homeNoticeHtml().catch(() => "");
+  if (S.me?.loginId !== ME || !v.isConnected || !onHome()) return;
   const d0 = new Date();
   v.innerHTML = `
     <div class="row-between"><div><h1 class="page-title" style="margin:0">નમસ્તે, ${esc(String(S.profile?.name || "").split(" ")[0])}</h1>
       <span class="sub">${["રવિવાર", "સોમવાર", "મંગળવાર", "બુધવાર", "ગુરુવાર", "શુક્રવાર", "શનિવાર"][d0.getDay()]}, ${d0.getDate()} ${["જાન્યુઆરી", "ફેબ્રુઆરી", "માર્ચ", "એપ્રિલ", "મે", "જૂન", "જુલાઈ", "ઑગસ્ટ", "સપ્ટેમ્બર", "ઑક્ટોબર", "નવેમ્બર", "ડિસેમ્બર"][d0.getMonth()]} • ${esc(branchName(S.branchId))}</span></div>
       <a class="icon-btn boxed" href="#/search" aria-label="શોધો">${ic("search")}</a></div>
+    ${noticeHtml}
     <div class="dash">
       <a href="#/att"><span class="sub">આજની હાજરી</span><b style="color:${pct == null ? "var(--muted)" : pct < 75 ? "#DC2626" : "#15803D"}">${pct == null ? "—" : pct + "%"}</b><span class="sub">${base ? `${tot.a} ગેરહાજર • ${tot.l} મોડા` : "હજુ લેવાઈ નથી"}</span></a>
       <a href="#/fees"><span class="sub">આજનો ફી વકરો</span><b>${money(tMoney)}</b><span class="sub">${Number(td.n) || 0} પહોંચ</span></a>
@@ -140,6 +144,7 @@ export async function dashboard(v) {
       <a class="tile" href="#/old">${ic("dl", 26)}<span>જૂનો ડેટા</span></a>
       <a class="tile" href="#/settings">${ic("gear", 26)}<span>ગોઠવણ અને લોગિન</span></a>
     </div>`;
+  wirePushAsk(v);
 }
 
 // ================= શોધ =================

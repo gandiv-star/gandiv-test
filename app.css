@@ -460,3 +460,20 @@ dialog#modal::backdrop { background: rgba(17, 24, 39, .45); }
 [hidden] { display: none !important; }
 .pvw img { width: 100%; border-radius: 12px; display: block; margin-bottom: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.18); }
 .pp1 { color: #B45309; }
+
+/* ---------- ફેઝ 1B ભાગ 3: નોટિસ, નોટિફિકેશન ---------- */
+.bell { position: relative; }
+.bell .bdg { position: absolute; top: 4px; right: 2px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: #DC2626; color: #fff; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; border: 2px solid #fff; }
+.nrow { display: flex; align-items: flex-start; gap: 12px; padding: 12px 2px; border-top: 1px solid var(--line); color: inherit; text-decoration: none; }
+.nrow:first-child { border-top: 0; }
+.nrow b { font-weight: 600; } .nrow.new b { font-weight: 800; }
+.nrow.new .nic { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #DC2626; }
+.nic { width: 42px; height: 42px; border-radius: 12px; background: #F1F5F9; display: flex; align-items: center; justify-content: center; font-size: 22px; flex: none; }
+.ntxt { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: var(--muted); font-size: 14px; line-height: 1.45; margin-top: 2px; }
+.ncard { flex-direction: row; align-items: center; gap: 12px; text-decoration: none; color: inherit; border: 1.5px solid #FECACA; }
+.pushask { flex-direction: row; align-items: center; gap: 10px; border: 1.5px dashed var(--role); }
+.pushask .btn { min-height: 40px; padding: 0 12px; flex: none; }
+.ndetail { gap: 8px; } .nbody { font-size: 16px; line-height: 1.65; margin: 4px 0; white-space: normal; }
+.npic { width: 100%; border-radius: 12px; }
+.pgb { flex: 1; height: 10px; border-radius: 5px; background: #E2E8F0; overflow: hidden; } .pgb i { display: block; height: 100%; background: #16A34A; border-radius: 5px; }
+.pill.blue { background: #DBEAFE; color: #1D4ED8; } .pill.pink { background: #FCE7F3; color: #BE185D; }

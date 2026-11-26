@@ -179,7 +179,7 @@ async function loginsTab(el) {
     <div class="card"><h2>${esc(branchName(S.branchId))}ના લોગિન</h2>
       ${users.map(u => `<div class="urow ${u.active === false ? "off" : ""}">
         <span class="avatar">${ic("user", 20)}</span>
-        <div class="grow"><b>${esc(u.name)}</b><span class="muted">ID: ${esc(u.loginId)}${u.mobile ? " • " + esc(u.mobile) : ""}${u.active === false ? " • બંધ" : ""}</span></div>
+        <div class="grow"><b>${esc(u.name)}</b><span class="muted">ID: ${esc(u.loginId)}${u.mobile ? " • " + esc(u.mobile) : ""}${u.active === false ? " • બંધ" : ""}${u.noNotice ? " • 🔕 નોટિસ બંધ" : ""}</span></div>
         <span class="pill role" style="--c:${ROLES[u.role]?.color || "#14225A"}">${esc(ROLES[u.role]?.label || u.role)}</span>
         ${canManage(u) ? `<button type="button" class="icon-btn" data-more="${esc(u.loginId)}" aria-label="${esc(u.name)} માટે વિકલ્પ">⋮</button>` : ""}
       </div>`).join("") || `<p class="muted">હજુ કોઈ લોગિન નથી.</p>`}
@@ -215,8 +215,15 @@ function userMenu(u) {
     <p class="muted">ID: ${esc(u.loginId)} • ${esc(ROLES[u.role]?.label || u.role)}</p>
     <div class="stack">
       <button type="button" class="btn line big" id="rp">નવો કામચલાઉ પાસવર્ડ આપો</button>
+      ${["teacher", "receptionist", "accountant"].includes(u.role) ? `<button type="button" class="btn line big" id="nn">${u.noNotice ? "🔔 નોટિસ મોકલવાની છૂટ આપો" : "🔕 નોટિસ મોકલવાનું બંધ કરો"}</button>` : ""}
       <button type="button" class="btn line big ${u.active === false ? "" : "danger"}" id="tg">${u.active === false ? "લોગિન ફરી ચાલુ કરો" : "લોગિન બંધ કરો"}</button>
     </div>`);
+  $("#nn", d)?.addEventListener("click", e => busy(e.currentTarget, async () => {
+    const off = !u.noNotice;
+    try { await updateDoc(doc(db, "users", u.loginId), { noNotice: off, updatedAt: serverTimestamp() }); audit(off ? "user.noticeOff" : "user.noticeOn", u.loginId); }
+    catch (e2) { return fail(e2); }
+    closeModal(); toast(off ? `${u.name} હવે નોટિસ મોકલી નહીં શકે.` : `${u.name} ફરી નોટિસ મોકલી શકશે.`); route();
+  }));
   $("#rp", d).onclick = e => {
     if (!confirm(`${u.name} નો જૂનો પાસવર્ડ બંધ થઈ જશે. નવો કામચલાઉ પાસવર્ડ આપવો છે?`)) return;
     busy(e.currentTarget, async () => {

@@ -18,6 +18,7 @@ import { loadStudentAtt, studentMonth, calHtml, todayCard, canAtt } from "./att.
 import { bdayCard } from "./home.js";
 import { familyDiaryHtml, wireYt } from "./diary.js";
 import { familyResultHtml } from "./results.js";
+import { homeNoticeHtml, wirePushAsk } from "./notify.js";
 
 const STDS = ["7", "8", "9", "10", "11", "12"];
 const COURSES = ["NEET", "GUJCET", "JEE", "NMMS", "CET"];
@@ -749,9 +750,9 @@ export function printForm(s, photo) {
 export async function familyHome(v) {
   if (S.me.role === "student") {
     const [ss, ps, sched] = await Promise.all([getDoc(doc(db, "students", S.me.loginId)), getDoc(doc(db, "photos", S.me.loginId)).catch(() => null), loadSched()]);
-    const [att, dia, res] = ss.exists() ? await Promise.all([loadStudentAtt(ss.data()), familyDiaryHtml(ss.data(), S.me.loginId).catch(() => ""), familyResultHtml(S.me.loginId).catch(() => "")]) : [null, "", ""];
-    v.innerHTML = ss.exists() ? studentHomeHtml(ss.data(), ps?.exists() ? ps.data().data : "", sched, true, att, S.me.loginId, res + dia) : `<div class="card hello"><h1>નમસ્તે, ${esc(S.profile?.name || "")}</h1></div>`;
-    wireYt(v);
+    const [att, dia, res, nt] = ss.exists() ? await Promise.all([loadStudentAtt(ss.data()), familyDiaryHtml(ss.data(), S.me.loginId).catch(() => ""), familyResultHtml(S.me.loginId).catch(() => ""), homeNoticeHtml().catch(() => "")]) : [null, "", "", ""];
+    v.innerHTML = ss.exists() ? studentHomeHtml(ss.data(), ps?.exists() ? ps.data().data : "", sched, true, att, S.me.loginId, nt + res + dia) : `<div class="card hello"><h1>નમસ્તે, ${esc(S.profile?.name || "")}</h1></div>`;
+    wireYt(v); wirePushAsk(v);
     return;
   }
   // વાલી: બધાં બાળકો
@@ -762,6 +763,7 @@ export async function familyHome(v) {
     return x?.exists() ? { id, ...x.data(), photo: p?.exists() ? p.data().data : "" } : null;
   }))).filter(k => k && k.status !== "cancelled");
   // એક જ બેચનાં બે બાળકો: લેક્ચર/ટાઇમટેબલ એક જ વાર બતાવો
+  const nt = await homeNoticeHtml().catch(() => "");
   await Promise.all(kids.map(async (k, i) => {
     const shared = kids.slice(0, i).some(o => o.batchId && o.batchId === k.batchId);
     const nm = String(k.name || "").split(" ")[1] || k.name;
@@ -769,6 +771,7 @@ export async function familyHome(v) {
   }));
   v.innerHTML = `
     ${kids.map(k => bdayCard({ name: k.name, dob: k.dob }, k.id, "parent")).join("")}
+    ${nt}
     ${kids.map(k => todayCard(k.att, k.id, String(k.name || "").split(" ")[1] || k.name)).join("")}
     ${kids.map(k => k.res + k.dia).join("")}
     <div class="card hello"><h1>નમસ્તે 🙏</h1><p>${esc(branchName(S.branchId))} • ${kids.length > 1 ? `${kids.length} બાળકો` : "વાલી"}</p></div>
@@ -782,7 +785,7 @@ export async function familyHome(v) {
         <a class="btn line" href="#/myresults/${encodeURIComponent(k.id)}">${ic("trophy", 18)} ટેસ્ટ અને પરિણામ</a></div>`;
     }).join("") || `<div class="empty">હજુ કોઈ બાળક જોડાયેલું નથી.</div>`}
     <p class="muted center">સૂચનાઓ આગળના ભાગમાં ઉમેરાશે.</p>`;
-  wireYt(v);
+  wireYt(v); wirePushAsk(v);
 }
 
 // ================= બાકી ફોર્મ (Google Form ની યાદી) — ડેટા એન્ટ્રી / Master =================
