@@ -6,6 +6,7 @@ import { $, $$, esc, S, isAdmin, isMaster, canAdmit, toast, page, ic, route, mon
 import { ACADEMY } from "./config.js";
 import { dueInfo, loadSched } from "./fees.js";
 import { homeNoticeHtml, wirePushAsk } from "./notify.js";
+import { crmDue } from "./crm.js";
 
 const rosterRef = () => doc(db, "rosters", `${S.branchId}_${S.year}`);
 const branchName = id => S.branches.find(b => b.id === id)?.name || "";
@@ -113,7 +114,9 @@ export async function dashboard(v) {
     const n = c.p + c.l + c.a; return { lbl, pct: n ? Math.round((c.p + c.l) * 100 / n) : null, future: ds > today };
   });
   const lakh = n => n >= 1e5 ? `₹ ${(n / 1e5).toFixed(1).replace(/\.0$/, "")} લાખ` : money(n);
+  const calls = await crmDue();
   const todo = [
+    calls && [calls, "#16A34A", "આજના કૉલ", "પૂછપરછ ફોલો-અપ", "#/crm"],
     pending.length && [pending.length, "#DC2626", pending.length === 1 ? pending[0].name : `${pending.length} બેચ`, `હાજરી હજુ લેવાઈ નથી${pending.length === 1 && pending[0].start ? ` (${pending[0].start})` : ""}`, "#/att"],
     over.length && [over.length, "#F97316", "ફીની મુદત વીતી", "WhatsApp યાદી મોકલો", "#/fees"],
     often && [often, "#6D28D9", "વારંવાર ગેરહાજર", "30 દિવસમાં 3+ વાર", "#/att"],

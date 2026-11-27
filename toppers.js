@@ -236,3 +236,53 @@ export async function posterModal({ title, build, hasPhoto, adjKey, fileName, te
   };
   await draw();
 }
+
+// ---------- મિત્રને આમંત્રણ પોસ્ટર (ફોટા સાથે, સ્ટેટ્સ માટે) ----------
+export async function invitePoster(kind, it) {
+  await loadFonts();
+  const [logo, ph] = await Promise.all([loadImg("logo.png"), loadImg(it.photo)]);
+  const c = document.createElement("canvas"); c.width = 1080; c.height = 1350;
+  const x = c.getContext("2d"); x.scale(3, 3);
+  const R = rng(it.name.length * 131 + kind.length);
+  const rr = (X, Y, w, h, r) => { x.beginPath(); if (x.roundRect) x.roundRect(X, Y, w, h, r); else x.rect(X, Y, w, h); };
+  const tx = (s, X, Y, size, fill, o = {}) => { x.save(); let z = size; const f = () => `${o.w || 800} ${z}px ${o.fam || GU}`; x.font = f();
+    while (o.max && x.measureText(s).width > o.max && z > 6) { z -= .5; x.font = f(); }
+    x.textAlign = o.al || "center"; x.textBaseline = "middle"; if (o.sh) { x.shadowColor = o.sh; x.shadowBlur = 6; } x.fillStyle = fill; x.fillText(s, X, Y); x.restore(); };
+  const T = { gold: { bg: ["#22357F", "#060C26"], fg: "#FFFFFF", ac: "#F5C542", sub: "#FDE68A", dark: true },
+    fest: { bg: ["#FFFBF2", "#FFEFD5"], fg: "#0F1E5A", ac: "#F59E0B", sub: "#B91C1C", dark: false },
+    star: { bg: ["#5B21B6", "#F97316"], fg: "#FFFFFF", ac: "#FDE047", sub: "#FEF08A", dark: true } }[kind] || {};
+  const g = kind === "gold" ? x.createRadialGradient(W / 2, 120, 10, W / 2, 220, 420) : x.createLinearGradient(0, 0, W, H);
+  g.addColorStop(0, T.bg[0]); g.addColorStop(1, T.bg[1]); x.fillStyle = g; x.fillRect(0, 0, W, H);
+  const cols = ["#F43F5E", "#F59E0B", "#10B981", "#3B82F6", "#8B5CF6", "#EC4899"];
+  for (let i = 0; i < 70; i++) { const px = R() * W, py = R() * 360; x.save(); x.translate(px, py); x.rotate(R() * 6);
+    x.fillStyle = kind === "fest" ? cols[i % 6] : `rgba(255,236,150,${.25 + R() * .5})`; x.globalAlpha = kind === "fest" ? .8 : 1;
+    kind === "fest" ? x.fillRect(-3, -1.2, 6, 2.4) : (x.beginPath(), x.arc(0, 0, R() * 1.4 + .4, 0, 7), x.fill()); x.restore(); }
+  // ઉપર લોગો + નામ
+  x.save(); x.beginPath(); x.arc(W / 2, 34, 20, 0, 7); x.fillStyle = T.ac; x.fill(); x.beginPath(); x.arc(W / 2, 34, 18, 0, 7); x.clip(); x.fillStyle = "#111"; x.fillRect(W / 2 - 18, 16, 36, 36); if (logo) x.drawImage(logo, W / 2 - 18, 16, 36, 36); x.restore();
+  tx(ACADEMY.name, W / 2, 68, 15, T.ac);
+  // ફોટો
+  const cy = 150, r = 56;
+  x.save(); x.beginPath(); x.arc(W / 2, cy, r + 5, 0, 7); x.fillStyle = T.ac; x.shadowColor = "rgba(0,0,0,.35)"; x.shadowBlur = 14; x.fill(); x.restore();
+  x.save(); x.beginPath(); x.arc(W / 2, cy, r, 0, 7); x.clip();
+  if (ph) { const a = it.adj || {}, z = a.z || 1, k = Math.max(2 * r / ph.width, 2 * r / ph.height) * z, w = ph.width * k, h = ph.height * k;
+    x.fillStyle = "#fff"; x.fillRect(W / 2 - r, cy - r, 2 * r, 2 * r); const top = h > 2 * r ? (2 * r - h) * .12 : (2 * r - h) / 2;
+    x.drawImage(ph, W / 2 - w / 2 + (a.dx || 0) * 2 * r, cy - r + top + (a.dy || 0) * 2 * r, w, h); }
+  else { x.fillStyle = "#E0E7FF"; x.fillRect(W / 2 - r, cy - r, 2 * r, 2 * r); x.fillStyle = "#3730A3"; x.font = `800 44px ${GU}`; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText(String(it.name).slice(0, 1), W / 2, cy + 2); }
+  x.restore();
+  tx(`હું ${it.name}`, W / 2, 230, 22, T.fg, { max: 320, sh: T.dark ? "rgba(0,0,0,.4)" : "" });
+  tx(`ગાંડિવ એકેડેમીમાં ભણું છું${it.std ? ` (ધોરણ ${it.std})` : ""}`, W / 2, 254, 13, T.sub, { w: 700, max: 320 });
+  // સંદેશ
+  rr(30, 274, W - 60, 46, 23); x.fillStyle = T.dark ? "rgba(255,255,255,.14)" : "#0F1E5A"; x.fill();
+  tx("તમે પણ જોડાઓ! 🎓", W / 2, 297, 19, T.dark ? T.ac : "#FFFFFF");
+  tx(LINE, W / 2, 338, 10.5, T.fg, { w: 700, max: 330 });
+  tx("માહિતી માટે ફોન કરો અથવા ઑફિસે પધારો", W / 2, 354, 9.5, T.dark ? "rgba(255,255,255,.8)" : "#475569", { w: 600 });
+  // નીચે બ્રાન્ડ
+  x.fillStyle = T.dark ? "rgba(0,0,0,.25)" : "#0F1E5A"; x.fillRect(0, 368, W, 82);
+  const y = 372;
+  x.save(); x.beginPath(); x.arc(40, y + 31, 22, 0, 7); x.fillStyle = T.ac; x.fill(); x.beginPath(); x.arc(40, y + 31, 20, 0, 7); x.clip(); x.fillStyle = "#111"; x.fillRect(20, y + 11, 40, 40); if (logo) x.drawImage(logo, 20, y + 11, 40, 40); x.restore();
+  tx(ACADEMY.name, 70, y + 16, 17, "#FFFFFF", { al: "left", max: 175 });
+  if (ADDR) tx(ADDR, 70, y + 34, 7.6, "rgba(255,255,255,.85)", { al: "left", w: 600, max: 280 });
+  const phn = `📞 ${ACADEMY.phone}`; x.save(); x.font = `800 11px ${GU}`; const pw = x.measureText(phn).width + 18; x.restore();
+  rr(70, y + 46, pw, 20, 10); x.fillStyle = T.ac; x.fill(); tx(phn, 70 + pw / 2, y + 56.5, 11, "#14225A");
+  return c;
+}

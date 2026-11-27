@@ -98,15 +98,18 @@ const NAV = {
 };
 // મેનુમાં ન દેખાય પણ ખૂલી શકે એવાં પાનાં
 const EXTRA = {
-  admin: ["admit", "student", "viewas", "old", "entry", "assign", "pay", "oldpay", "receipt", "sched", "batches", "take", "attrep", "battrep", "search", "bday", "tt", "diary", "hwchk", "mydiary", "tests", "marks", "result", "rcard", "myresults", "myrcard", "notices", "notice", "notice-new"],
-  dataEntry: ["admit", "student", "viewas", "entry", "assign", "fees", "pay", "oldpay", "receipt", "search"],
-  staff: ["student", "pay", "oldpay", "receipt", "take", "attrep", "battrep", "search", "bday", "diary", "hwchk", "tt", "tests", "marks", "result", "rcard", "notices", "notice", "notice-new"],
-  teacher: ["att", "take", "attrep", "battrep", "student", "search", "bday", "diary", "hwchk", "tt", "tests", "marks", "result", "rcard", "notices", "notice", "notice-new"],
-  family: ["myfees", "receipt", "attrep", "bday", "mydiary", "myresults", "myrcard", "notices", "notice"]
+  admin: ["admit", "student", "viewas", "old", "entry", "assign", "pay", "oldpay", "receipt", "sched", "batches", "take", "attrep", "battrep", "search", "bday", "tt", "diary", "hwchk", "mydiary", "tests", "marks", "result", "rcard", "myresults", "myrcard", "notices", "notice", "notice-new", "crm", "crm-new", "lead", "crm-rep", "refs", "refer"],
+  dataEntry: ["admit", "student", "viewas", "entry", "assign", "fees", "pay", "oldpay", "receipt", "search", "crm-new", "lead", "crm-rep", "refs"],
+  staff: ["student", "pay", "oldpay", "receipt", "take", "attrep", "battrep", "search", "bday", "diary", "hwchk", "tt", "tests", "marks", "result", "rcard", "notices", "notice", "notice-new", "crm-new", "lead", "crm-rep", "refs"],
+  teacher: ["att", "take", "attrep", "battrep", "student", "search", "bday", "diary", "hwchk", "tt", "tests", "marks", "result", "rcard", "notices", "notice", "notice-new", "crm-new", "lead", "crm-rep", "refs"],
+  family: ["myfees", "receipt", "attrep", "bday", "mydiary", "myresults", "myrcard", "notices", "notice", "refer"]
 };
 const extraFor = r => (["master", "branchAdmin"].includes(r) ? EXTRA.admin : ["accountant", "receptionist"].includes(r) ? EXTRA.staff
   : ["student", "parent"].includes(r) ? EXTRA.family : EXTRA[r] || []);
-const navFor = r => (["master", "branchAdmin"].includes(r) ? NAV.admin : r === "dataEntry" ? NAV.dataEntry : r === "teacher" ? NAV.teacher : r === "student" ? NAV.student : r === "parent" ? NAV.parent : NAV.staff);
+const navBase = r => (["master", "branchAdmin"].includes(r) ? NAV.admin : r === "dataEntry" ? NAV.dataEntry : r === "teacher" ? NAV.teacher : r === "student" ? NAV.student : r === "parent" ? NAV.parent : NAV.staff);
+// CRM: ડેટા એન્ટ્રી/રિસેપ્શન/એકાઉન્ટ (બંધ ન કર્યું હોય તો), શિક્ષક (ચાલુ કર્યું હોય તો)
+const crmNav = r => (["dataEntry", "receptionist", "accountant"].includes(r) && S.profile?.noCrm !== true) || (r === "teacher" && S.profile?.crm === true);
+const navFor = r => crmNav(r) ? [...navBase(r), ["crm", "પૂછપરછ", "phone"]] : navBase(r);
 
 export const ICON = {
   home: '<path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/>',
@@ -142,6 +145,7 @@ export const ICON = {
   play: '<path d="M8 5v14l11-7z"/>',
   trophy: '<path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8M10 17h4"/>',
   chev: '<path d="m9 6 6 6-6 6"/>',
+  chart: '<path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/>',
   bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
   book: '<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5M8 7h7"/>'
 };
@@ -312,7 +316,7 @@ export function route() {
   $$("[data-nav]").forEach(a => a.classList.toggle("on", a.dataset.nav === S.page));
   // પાનાનો છેલ્લો ફોટો તરત બતાવો, નવી માહિતી આવે એટલે બદલાઈ જાય
   // ફોર્મવાળાં પાનાંનો જૂનો ફોટો નહીં (ભૂલથી જૂના ફોટામાં લખાઈ ન જાય)
-  const NOSNAP = ["admit", "pay", "oldpay", "sched", "assign", "receipt", "tt", "diary", "hwchk", "marks", "rcard", "notice-new", "notices", "notice"];
+  const NOSNAP = ["admit", "pay", "oldpay", "sched", "assign", "receipt", "tt", "diary", "hwchk", "marks", "rcard", "notice-new", "notices", "notice", "crm-new", "lead"];
   let last = null; try { if (!NOSNAP.includes(S.page)) last = localStorage.getItem(PK()); } catch {}
   v.innerHTML = last || SKEL;
   // જૂનો ફોટો દેખાય ત્યાં સુધી બટન દબાય નહીં

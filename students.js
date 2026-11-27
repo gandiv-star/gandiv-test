@@ -19,6 +19,7 @@ import { bdayCard } from "./home.js";
 import { familyDiaryHtml, wireYt } from "./diary.js";
 import { familyResultHtml } from "./results.js";
 import { homeNoticeHtml, wirePushAsk } from "./notify.js";
+import { leadPrefill, crmJoined, referCardHtml } from "./crm.js";
 
 const STDS = ["7", "8", "9", "10", "11", "12"];
 const COURSES = ["NEET", "GUJCET", "JEE", "NMMS", "CET"];
@@ -133,7 +134,8 @@ page("admit", async v => {
   if (!S.branchId) { v.innerHTML = `<div class="empty">પહેલાં શાખા ઉમેરો.</div>`; return; }
   const arg = hashArg();
   const draftKey = arg.startsWith("d:") ? arg.slice(2) : "";
-  const editId = draftKey ? "" : arg;
+  const leadKey = arg.startsWith("L:") ? arg.slice(2) : "";
+  const editId = draftKey || leadKey ? "" : arg;
   const [ms, bs, old, ph, rs, ds] = await Promise.all([
     getDoc(metaRef()),
     getDocs(query(collection(db, "batches"), where("branchId", "==", S.branchId), where("yearId", "==", S.year))),
@@ -142,6 +144,7 @@ page("admit", async v => {
     getDoc(rosterRef()).catch(() => null),
     draftKey ? getDoc(draftRef()) : null
   ]);
+  const lead = leadKey ? await leadPrefill(leadKey) : null;
   ROSTER = (rs?.exists() && rs.data().list) || {};
   META = ms.exists() ? ms.data() : {};
   BATCHES = bs.docs.map(d => ({ id: d.id, ...d.data() })).filter(b => b.active !== false);
@@ -167,8 +170,21 @@ page("admit", async v => {
           mobParent: dr.mp || "", mobStudent: dr.ms || "", waSame: !dr.mw || dr.mw === dr.mp, mobWa: dr.mw || ""
         });
       }
+    } else if (leadKey) {
+      if (!lead) { v.innerHTML = `<div class="empty">આ પૂછપરછ મળી નહીં.</div>`; return; }
+      if (lead.st === "joined" && lead.sid) { location.hash = `#/student/${encodeURIComponent(lead.sid)}`; return; }
+      // CRM ની પૂછપરછમાંથી: નામ, મોબાઇલ, ધોરણ, શાળા, ગામ પહેલેથી
+      if (d?.leadId === leadKey) F = d;
+      else {
+        F = blank();
+        const std = String(lead.std || "").match(/\d+/)?.[0] || "";
+        const bts = matchBatch({ s: std, b: String(lead.std).replace("સાયન્સ", "sci").replace("કોમર્સ", "com") }), bt = bts.length === 1 ? bts[0] : null;
+        Object.assign(F, { leadId: leadKey, name: lead.n || "", std, school: lead.sch || "", village: lead.vil || "", mobParent: lead.m || "",
+          batchId: bt?.id || "", batchName: bt?.name || "" });
+        if (isDE()) { F.legacy = true; F.formDate = ""; }
+      }
     } else {
-      F = d && !d.draftKey ? d : blank();
+      F = d && !d.draftKey && !d.leadId ? d : blank();
       if (isDE() && !F.legacy) { F.legacy = true; F.formDate = ""; }
       if (!F.legacy) F.formDate = F.formDate || ymd();
     }
@@ -490,6 +506,7 @@ async function saveAdmission() {
   b.set(metaRef(), metaUpd, { merge: true });
   await b.commit();
   audit("student.admit", id, `${data.name} • ફોર્મ ${data.formNo}`);
+  if (F.leadId) crmJoined(F.leadId, id, data.name);
   localStorage.removeItem(DK());
   showDone(full, st, parent, parentCreds);
 }
@@ -509,6 +526,7 @@ async function saveLegacy(data, metaUpd) {
   if (F.draftKey) b.set(draftRef(), { branchId: S.branchId, list: { [F.draftKey]: { done: id, f: data.formNo } } }, { merge: true });
   await b.commit();
   audit("student.legacy", id, `${data.name} • ફોર્મ ${data.formNo}`);
+  if (F.leadId) crmJoined(F.leadId, id, data.name);
   localStorage.removeItem(DK());
   const photo = F.photo, key = F.draftKey, batch = F.gf?.b;
   buzz("done"); toast("ચડાવાયું ✓");
@@ -750,8 +768,8 @@ export function printForm(s, photo) {
 export async function familyHome(v) {
   if (S.me.role === "student") {
     const [ss, ps, sched] = await Promise.all([getDoc(doc(db, "students", S.me.loginId)), getDoc(doc(db, "photos", S.me.loginId)).catch(() => null), loadSched()]);
-    const [att, dia, res, nt] = ss.exists() ? await Promise.all([loadStudentAtt(ss.data()), familyDiaryHtml(ss.data(), S.me.loginId).catch(() => ""), familyResultHtml(S.me.loginId).catch(() => ""), homeNoticeHtml().catch(() => "")]) : [null, "", "", ""];
-    v.innerHTML = ss.exists() ? studentHomeHtml(ss.data(), ps?.exists() ? ps.data().data : "", sched, true, att, S.me.loginId, nt + res + dia) : `<div class="card hello"><h1>નમસ્તે, ${esc(S.profile?.name || "")}</h1></div>`;
+    const [att, dia, res, nt, rf] = ss.exists() ? await Promise.all([loadStudentAtt(ss.data()), familyDiaryHtml(ss.data(), S.me.loginId).catch(() => ""), familyResultHtml(S.me.loginId).catch(() => ""), homeNoticeHtml().catch(() => ""), referCardHtml(S.me.loginId).catch(() => "")]) : [null, "", "", "", ""];
+    v.innerHTML = ss.exists() ? studentHomeHtml(ss.data(), ps?.exists() ? ps.data().data : "", sched, true, att, S.me.loginId, nt + res + dia + rf) : `<div class="card hello"><h1>નમસ્તે, ${esc(S.profile?.name || "")}</h1></div>`;
     wireYt(v); wirePushAsk(v);
     return;
   }
@@ -763,7 +781,7 @@ export async function familyHome(v) {
     return x?.exists() ? { id, ...x.data(), photo: p?.exists() ? p.data().data : "" } : null;
   }))).filter(k => k && k.status !== "cancelled");
   // એક જ બેચનાં બે બાળકો: લેક્ચર/ટાઇમટેબલ એક જ વાર બતાવો
-  const nt = await homeNoticeHtml().catch(() => "");
+  const [nt, rf] = await Promise.all([homeNoticeHtml().catch(() => ""), referCardHtml(ids[0]).catch(() => "")]);
   await Promise.all(kids.map(async (k, i) => {
     const shared = kids.slice(0, i).some(o => o.batchId && o.batchId === k.batchId);
     const nm = String(k.name || "").split(" ")[1] || k.name;
@@ -774,6 +792,7 @@ export async function familyHome(v) {
     ${nt}
     ${kids.map(k => todayCard(k.att, k.id, String(k.name || "").split(" ")[1] || k.name)).join("")}
     ${kids.map(k => k.res + k.dia).join("")}
+    ${rf}
     <div class="card hello"><h1>નમસ્તે 🙏</h1><p>${esc(branchName(S.branchId))} • ${kids.length > 1 ? `${kids.length} બાળકો` : "વાલી"}</p></div>
     ${kids.map(k => {
       const ym = ymd().slice(0, 7), m = studentMonth(k.att, k.id, ym);

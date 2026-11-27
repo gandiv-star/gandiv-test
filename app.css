@@ -477,3 +477,19 @@ dialog#modal::backdrop { background: rgba(17, 24, 39, .45); }
 .npic { width: 100%; border-radius: 12px; }
 .pgb { flex: 1; height: 10px; border-radius: 5px; background: #E2E8F0; overflow: hidden; } .pgb i { display: block; height: 100%; background: #16A34A; border-radius: 5px; }
 .pill.blue { background: #DBEAFE; color: #1D4ED8; } .pill.pink { background: #FCE7F3; color: #BE185D; }
+/* ---------- CRM અને રેફરલ ---------- */
+.lrow { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+.lrow:first-child { border-top: 0; }
+.lrow a.grow { color: inherit; text-decoration: none; display: flex; flex-direction: column; gap: 3px; align-items: flex-start; min-width: 0; }
+.lrow .pill { margin-top: 2px; }
+.icon-btn.call { width: 46px; height: 46px; border-radius: 50%; background: #DCFCE7; color: #15803D; flex: none; display: grid; place-items: center; }
+.outs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ob { min-height: 50px; border: 1.5px solid var(--line); background: #fff; border-radius: 14px; font: inherit; font-weight: 600; font-size: 15px; cursor: pointer; }
+.ob.on { border-color: var(--role); background: color-mix(in srgb, var(--role) 10%, #fff); }
+.ob.okb.on { border-color: #16A34A; background: #DCFCE7; } .ob.nob.on { border-color: #DC2626; background: #FEE2E2; }
+.lgrow { display: flex; gap: 10px; align-items: flex-start; padding: 9px 0; border-top: 1px solid var(--line); }
+.lgrow:first-of-type { border-top: 0; }
+.hint.warn { color: #B45309; font-weight: 600; }
+.refcard { background: linear-gradient(135deg, #FFF7E6, #FFEFD1); box-shadow: 0 0 0 1px #F5DFA3; color: inherit; text-decoration: none; gap: 6px; }
+.refcard h2 { margin: 0; }
+.camp { background: #14225A; color: #FDE68A; border-radius: 10px; padding: 6px 10px; font-weight: 700; font-size: 14px; align-self: flex-start; }

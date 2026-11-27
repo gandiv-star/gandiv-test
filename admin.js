@@ -215,9 +215,16 @@ function userMenu(u) {
     <p class="muted">ID: ${esc(u.loginId)} • ${esc(ROLES[u.role]?.label || u.role)}</p>
     <div class="stack">
       <button type="button" class="btn line big" id="rp">નવો કામચલાઉ પાસવર્ડ આપો</button>
+      ${["dataEntry", "receptionist", "accountant"].includes(u.role) ? `<button type="button" class="btn line big" id="cr">${u.noCrm ? "📞 CRM ચાલુ કરો" : "📵 CRM બંધ કરો"}</button>` : u.role === "teacher" ? `<button type="button" class="btn line big" id="cr">${u.crm ? "📵 CRM બંધ કરો" : "📞 CRM ચાલુ કરો"}</button>` : ""}
       ${["teacher", "receptionist", "accountant"].includes(u.role) ? `<button type="button" class="btn line big" id="nn">${u.noNotice ? "🔔 નોટિસ મોકલવાની છૂટ આપો" : "🔕 નોટિસ મોકલવાનું બંધ કરો"}</button>` : ""}
       <button type="button" class="btn line big ${u.active === false ? "" : "danger"}" id="tg">${u.active === false ? "લોગિન ફરી ચાલુ કરો" : "લોગિન બંધ કરો"}</button>
     </div>`);
+  $("#cr", d)?.addEventListener("click", e => busy(e.currentTarget, async () => {
+    const upd = u.role === "teacher" ? { crm: !u.crm } : { noCrm: !u.noCrm }, on = u.role === "teacher" ? !u.crm : !!u.noCrm;
+    try { await updateDoc(doc(db, "users", u.loginId), { ...upd, updatedAt: serverTimestamp() }); audit(on ? "user.crmOn" : "user.crmOff", u.loginId); }
+    catch (e2) { return fail(e2); }
+    closeModal(); toast(on ? `${u.name} હવે CRM વાપરી શકશે.` : `${u.name} માટે CRM બંધ.`); route();
+  }));
   $("#nn", d)?.addEventListener("click", e => busy(e.currentTarget, async () => {
     const off = !u.noNotice;
     try { await updateDoc(doc(db, "users", u.loginId), { noNotice: off, updatedAt: serverTimestamp() }); audit(off ? "user.noticeOff" : "user.noticeOn", u.loginId); }
