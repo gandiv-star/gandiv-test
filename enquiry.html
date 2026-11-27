@@ -56,10 +56,10 @@
 </div>
 <script type="module">
   import { ACADEMY, PUSH } from "./config.js";
-  const $ = s => document.querySelector(s), P = new URLSearchParams(location.search), ref = P.get("r") || "", br = P.get("b") || "";
+  const $ = s => document.querySelector(s), P = new URLSearchParams(location.search), ref = P.get("r") || "", br = P.get("b") || "", viaQr = P.get("s") === "qr";
   $("#line").textContent = ACADEMY.posterLine || ""; $("#addr").textContent = ACADEMY.address ? "📍 " + ACADEMY.address : "";
   $("#foot").innerHTML = `📞 <a href="tel:${ACADEMY.phone}">${ACADEMY.phone}</a><br>${ACADEMY.name}${ACADEMY.address ? ", " + ACADEMY.address : ""}`;
-  if (ref) { $("#ref").hidden = false; $("#srcw").hidden = true; }
+  if (ref) { $("#ref").hidden = false; $("#srcw").hidden = true; } else if (viaQr) $("#srcw").hidden = true;
   let std = "", src = "";
   const chips = (el, list, set) => { el.innerHTML = list.map(([k, l]) => `<button type="button" class="chip" data-k="${k}">${l}</button>`).join("");
     el.querySelectorAll("button").forEach(b => b.onclick = () => { el.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); set(b.dataset.k); }); };
@@ -85,7 +85,7 @@
     const go = $("#go"); go.disabled = true; go.textContent = "મોકલાય છે…";
     let ac = null; try { ac = new (window.AudioContext || window.webkitAudioContext)(); ac.resume && ac.resume(); } catch {}
     try {
-      await fetch(PUSH.url, { method: "POST", mode: "no-cors", body: JSON.stringify({ action: "enquiry", b: br, r: ref, n, m, std, sch: $("#s").value.trim(), vil: $("#v").value.trim(), src: ref ? "ref" : src || "form", hp: $("#hp").value }) });
+      await fetch(PUSH.url, { method: "POST", mode: "no-cors", body: JSON.stringify({ action: "enquiry", b: br, r: ref, n, m, std, sch: $("#s").value.trim(), vil: $("#v").value.trim(), src: ref ? "ref" : viaQr ? "qr" : src || "form", hp: $("#hp").value }) });
       thanks(ac);
       $("#f").outerHTML = `<div class="card ok"><div class="tick">✅</div><h2>આભાર!</h2><p>તમારી પૂછપરછ મળી ગઈ છે. ગાંડિવ એકેડેમીમાંથી ટૂંક સમયમાં તમને ફોન આવશે.</p>
         <a class="btn line" href="tel:${ACADEMY.phone}">📞 હમણાં વાત કરવી હોય તો ફોન કરો</a></div>`;

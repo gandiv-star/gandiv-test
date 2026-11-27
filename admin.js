@@ -161,8 +161,7 @@ async function yearTab(el) {
     </div>`;
   $("#ysave", el)?.addEventListener("click", e => busy(e.currentTarget, async () => {
     const y = $("#ysel", el).value;
-    if (y === S.year) return toast("આ જ વર્ષ ચાલુ છે.");
-    if (!confirm(`ચાલુ વર્ષ ${y} કરવું છે?`)) return;
+    if (y !== S.year && !confirm(`ચાલુ વર્ષ ${y} કરવું છે?`)) return;
     try { await setDoc(doc(db, "meta", "settings"), { currentYear: y, updatedAt: serverTimestamp() }, { merge: true }); S.year = y; saveCtx(); audit("year.set", y); toast("વર્ષ બદલાયું."); route(); }
     catch (e2) { fail(e2); }
   }));

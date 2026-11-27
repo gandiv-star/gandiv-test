@@ -10,6 +10,7 @@ import { $, $$, esc, S, isAdmin, toast, fail, busy, audit, page, ic, route, fmtD
 import { ACADEMY } from "./config.js";
 import { isBday } from "./home.js";
 import { diaryHomeCard, teachesIn } from "./diary.js";
+import { demoList, demoCardHtml, wireDemo } from "./crm.js";
 import { autoAttendance, homeNoticeHtml, wirePushAsk } from "./notify.js";
 
 const ST = { p: "હાજર", a: "ગેરહાજર", l: "મોડો", h: "રજા" };
@@ -128,7 +129,7 @@ page("take", async v => {
   if (!canAtt()) { location.hash = "#/home"; return; }
   const batchId = arg(2), date = arg(3) || ymd();
   const ym = date.slice(0, 7), dd = date.slice(8, 10);
-  const [bs, roster, att] = await Promise.all([getDoc(doc(db, "batches", batchId)), loadRoster(), getAtt(batchId, ym)]);
+  const [bs, roster, att, DEMO] = await Promise.all([getDoc(doc(db, "batches", batchId)), loadRoster(), getAtt(batchId, ym), demoList(batchId, date).catch(() => [])]);
   if (!bs.exists()) { v.innerHTML = `<div class="empty">બેચ મળી નહીં.</div>`; return; }
   const b = { id: batchId, ...bs.data() };
   const kids = roster.filter(r => r.b === batchId).sort((x, y) => String(x.n).localeCompare(String(y.n), "gu"));
@@ -152,6 +153,7 @@ page("take", async v => {
           <span class="grow"><b>${esc(k.n)}</b>${st === "l" ? `<span class="sub late">${lateBy(T[k.id], b.start) ? lateBy(T[k.id], b.start) + " મિનિટ મોડો • " : ""}<button type="button" class="link-btn" data-tm="${esc(k.id)}">સમય બદલો ✎</button>${Rn[k.id] ? " • " + esc(Rn[k.id]) : ""}</span>` : ""}</span>
           <span class="st">${st === "l" ? "મોડો " + esc(T[k.id] || "") : ST[st]}</span></div>`;
       }).join("")}</div>`}
+      ${demoCardHtml(DEMO)}
       <div class="fbar"><button type="button" class="btn line" id="hol">આજે રજા</button>
         <button type="button" class="btn primary" id="save" ${kids.length ? "" : "disabled"}>${ic("check", 18)} હાજરી સાચવો</button></div>`;
     $$("[data-sid]", v).forEach(el => {
@@ -166,6 +168,7 @@ page("take", async v => {
       el.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); tap(e); } };
     });
     $$("[data-tm]", v).forEach(btn => btn.onclick = e => { e.stopPropagation(); clock(btn.dataset.tm); });
+    wireDemo(v, DEMO);
     $("#save").onclick = e => save(e.currentTarget, false);
     $("#hol").onclick = e => { if (confirm(`${fmtD(date)} ના દિવસે ${b.name} નો વર્ગ નથી (રજા) તરીકે સાચવવું છે?`)) save(e.currentTarget, true); };
   };

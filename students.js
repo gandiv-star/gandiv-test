@@ -181,6 +181,7 @@ page("admit", async v => {
         const bts = matchBatch({ s: std, b: String(lead.std).replace("સાયન્સ", "sci").replace("કોમર્સ", "com") }), bt = bts.length === 1 ? bts[0] : null;
         Object.assign(F, { leadId: leadKey, name: lead.n || "", std, school: lead.sch || "", village: lead.vil || "", mobParent: lead.m || "",
           batchId: bt?.id || "", batchName: bt?.name || "" });
+        if (lead.fee) { F.fee.adm = "0"; F.fee.tui = String(lead.fee); }   // પૂછપરછ વખતે કહેલી કુલ ફી (પ્રવેશ ફોર્મમાં બદલી શકાય)
         if (isDE()) { F.legacy = true; F.formDate = ""; }
       }
     } else {

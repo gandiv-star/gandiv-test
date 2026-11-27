@@ -286,3 +286,46 @@ export async function invitePoster(kind, it) {
   rr(70, y + 46, pw, 20, 10); x.fillStyle = T.ac; x.fill(); tx(phn, 70 + pw / 2, y + 56.5, 11, "#14225A");
   return c;
 }
+
+// ---------- પ્રવેશ QR પોસ્ટર (ઑફિસ, શાળા પાસે, પત્રિકા, સ્ટેટ્સ) ----------
+export async function qrPoster(kind, it) {
+  await loadFonts();
+  const [{ drawQR }, logo] = await Promise.all([import("./qr.js"), loadImg("logo.png")]);
+  const c = document.createElement("canvas"); c.width = 1080; c.height = 1350;
+  const x = c.getContext("2d"); x.scale(3, 3);
+  const R = rng(97 + kind.length);
+  const rr = (X, Y, w, h, r) => { x.beginPath(); if (x.roundRect) x.roundRect(X, Y, w, h, r); else x.rect(X, Y, w, h); };
+  const tx = (s, X, Y, size, fill, o = {}) => { x.save(); let z = size; const f = () => `${o.w || 800} ${z}px ${o.fam || GU}`; x.font = f();
+    while (o.max && x.measureText(s).width > o.max && z > 6) { z -= .5; x.font = f(); }
+    x.textAlign = o.al || "center"; x.textBaseline = "middle"; x.fillStyle = fill; x.fillText(s, X, Y); x.restore(); };
+  const T = { gold: { bg: ["#22357F", "#060C26"], fg: "#FFFFFF", ac: "#F5C542", sub: "#FDE68A", dark: true },
+    fest: { bg: ["#FFFBF2", "#FFEFD5"], fg: "#0F1E5A", ac: "#F59E0B", sub: "#B91C1C", dark: false },
+    star: { bg: ["#5B21B6", "#F97316"], fg: "#FFFFFF", ac: "#FDE047", sub: "#FEF08A", dark: true } }[kind] || {};
+  const g = kind === "gold" ? x.createRadialGradient(W / 2, 120, 10, W / 2, 220, 420) : x.createLinearGradient(0, 0, W, H);
+  g.addColorStop(0, T.bg[0]); g.addColorStop(1, T.bg[1]); x.fillStyle = g; x.fillRect(0, 0, W, H);
+  const cols = ["#F43F5E", "#F59E0B", "#10B981", "#3B82F6", "#8B5CF6", "#EC4899"];
+  for (let i = 0; i < 50; i++) { const px = R() * W, py = R() * 120; x.save(); x.translate(px, py); x.rotate(R() * 6);
+    x.fillStyle = kind === "fest" ? cols[i % 6] : `rgba(255,236,150,${.25 + R() * .5})`; x.globalAlpha = kind === "fest" ? .8 : 1;
+    kind === "fest" ? x.fillRect(-3, -1.2, 6, 2.4) : (x.beginPath(), x.arc(0, 0, R() * 1.4 + .4, 0, 7), x.fill()); x.restore(); }
+  // ઉપર: લોગો + નામ + લાઇન
+  x.save(); x.beginPath(); x.arc(W / 2, 34, 21, 0, 7); x.fillStyle = T.ac; x.fill(); x.beginPath(); x.arc(W / 2, 34, 19, 0, 7); x.clip(); x.fillStyle = "#111"; x.fillRect(W / 2 - 19, 15, 38, 38); if (logo) x.drawImage(logo, W / 2 - 19, 15, 38, 38); x.restore();
+  tx(ACADEMY.name, W / 2, 72, 24, T.ac);
+  tx(LINE, W / 2, 94, 10.5, T.fg, { w: 700, max: 330 });
+  // પટ્ટી
+  rr(40, 108, W - 80, 34, 17); x.fillStyle = T.dark ? T.ac : "#0F1E5A"; x.fill();
+  const y0 = Number(String(it.year || "").slice(0, 4)), yl = y0 ? `${y0 + 1}-${String(y0 + 2).slice(2)}` : "";
+  tx(`પ્રવેશ ચાલુ છે${yl ? " • " + yl : ""}`, W / 2, 125.5, 15, T.dark ? "#14225A" : "#FFFFFF", { max: W - 100 });
+  // QR
+  const qs = 176, qx = (W - qs) / 2, qy = 154;
+  rr(qx - 8, qy - 8, qs + 16, qs + 16, 14); x.fillStyle = "#FFFFFF"; x.fill();
+  x.save(); x.strokeStyle = T.ac; x.lineWidth = 2.5; rr(qx - 8, qy - 8, qs + 16, qs + 16, 14); x.stroke(); x.restore();
+  drawQR(x, it.link, qx, qy, qs, "#0F1E5A", "#FFFFFF");
+  tx("📱 કૅમેરાથી સ્કેન કરો", W / 2, 352, 15, T.fg);
+  tx("પ્રવેશની માહિતી માટે ફોર્મ ભરો, અમે ફોન કરીશું", W / 2, 370, 9.5, T.dark ? "rgba(255,255,255,.85)" : "#475569", { w: 600 });
+  // નીચે બ્રાન્ડ
+  x.fillStyle = T.dark ? "rgba(0,0,0,.28)" : "#0F1E5A"; x.fillRect(0, 384, W, 66);
+  if (ADDR) tx("📍 " + ADDR, W / 2, 400, 8.6, "rgba(255,255,255,.9)", { w: 600, max: W - 24 });
+  const phn = `📞 ${ACADEMY.phone}`; x.save(); x.font = `800 13px ${GU}`; const pw = x.measureText(phn).width + 22; x.restore();
+  rr((W - pw) / 2, 412, pw, 24, 12); x.fillStyle = T.ac; x.fill(); tx(phn, W / 2, 424.5, 13, "#14225A");
+  return c;
+}
