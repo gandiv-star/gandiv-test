@@ -348,7 +348,7 @@ a.srow { color: var(--text); text-decoration: none; }
 .todo { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); color: var(--text); text-decoration: none; min-height: 52px; }
 .todo:first-of-type { border-top: 0; }
 .todo .n { min-width: 36px; height: 36px; padding: 0 6px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; }
-.qa { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.qa { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 6px; }
 .qa a { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12.5px; text-align: center; color: var(--text); text-decoration: none; }
 .qa a span { width: 52px; height: 52px; border-radius: 16px; background: var(--role); color: #fff; display: flex; align-items: center; justify-content: center; }
 .bday { background: linear-gradient(135deg, #FFF1F2, #FFF7ED); border: 1.5px solid #FBCFE8; border-radius: 16px; padding: 12px; display: flex; gap: 12px; align-items: center; color: var(--text); text-decoration: none; }
