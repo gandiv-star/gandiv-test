@@ -1,5 +1,5 @@
 // ગાંડિવ એકેડેમી V2 — ઝડપ અને offline માટે. કોડ બદલાય ત્યારે VERSION વધારવું.
-const VERSION = "gv2-31";
+const VERSION = "gv2-32";
 const FILES = ["./", "index.html", "app.css", "config.js", "fb.js", "core.js", "auth.js", "admin.js", "students.js", "fees.js", "att.js", "home.js", "diary.js", "results.js", "toppers.js", "notify.js", "crm.js", "logo.png", "icon-192.png", "manifest.json"];
 const SDK = ["firebase-app.js", "firebase-auth.js", "firebase-firestore.js"].map(f => "https://www.gstatic.com/firebasejs/10.12.2/" + f);
 
@@ -40,7 +40,7 @@ self.addEventListener("push", e => {
   const n = p.data || p.notification || p;
   e.waitUntil((async () => {
     const list = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-    const vis = list.find(c => c.visibilityState === "visible");
+    const vis = list.find(c => c.visibilityState === "visible" && !/enquiry\.html/.test(c.url));   // પૂછપરછ ફોર્મ એપ નથી
     if (vis) { vis.postMessage({ gvPush: n }); return; } // એપ ખુલ્લી છે: એપમાં જ મધુર ટ્યુન સાથે બતાવો
     await self.registration.showNotification(n.title || "ગાંડિવ એકેડેમી", {
       body: n.body || "", icon: "icon-192.png", badge: "icon-192.png", tag: n.tag || undefined, renotify: !!n.tag,
