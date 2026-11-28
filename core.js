@@ -98,11 +98,11 @@ const NAV = {
 };
 // મેનુમાં ન દેખાય પણ ખૂલી શકે એવાં પાનાં
 const EXTRA = {
-  admin: ["admit", "student", "viewas", "old", "entry", "assign", "pay", "oldpay", "receipt", "sched", "batches", "take", "attrep", "battrep", "search", "bday", "tt", "diary", "hwchk", "mydiary", "tests", "marks", "result", "rcard", "myresults", "myrcard", "notices", "notice", "notice-new", "crm", "crm-new", "lead", "crm-rep", "refs", "nextyr", "refer"],
+  admin: ["admit", "student", "viewas", "old", "entry", "assign", "pay", "oldpay", "receipt", "sched", "batches", "take", "attrep", "battrep", "search", "bday", "tt", "diary", "hwchk", "mydiary", "tests", "marks", "result", "rcard", "myresults", "myrcard", "notices", "notice", "notice-new", "crm", "crm-new", "lead", "crm-rep", "refs", "nextyr", "refer", "helpdesk", "hticket"],
   dataEntry: ["admit", "student", "viewas", "entry", "assign", "fees", "pay", "oldpay", "receipt", "search", "crm-new", "lead", "crm-rep", "refs", "nextyr"],
   staff: ["student", "pay", "oldpay", "receipt", "take", "attrep", "battrep", "search", "bday", "diary", "hwchk", "tt", "tests", "marks", "result", "rcard", "notices", "notice", "notice-new", "crm-new", "lead", "crm-rep", "refs", "nextyr"],
-  teacher: ["att", "take", "attrep", "battrep", "student", "search", "bday", "diary", "hwchk", "tt", "tests", "marks", "result", "rcard", "notices", "notice", "notice-new", "crm-new", "lead", "crm-rep", "refs", "nextyr"],
-  family: ["myfees", "receipt", "attrep", "bday", "mydiary", "myresults", "myrcard", "notices", "notice", "refer"]
+  teacher: ["att", "take", "attrep", "battrep", "student", "search", "bday", "diary", "hwchk", "tt", "tests", "marks", "result", "rcard", "notices", "notice", "notice-new", "crm-new", "lead", "crm-rep", "refs", "nextyr", "hticket"],
+  family: ["myfees", "receipt", "attrep", "bday", "mydiary", "myresults", "myrcard", "notices", "notice", "refer", "help", "hticket"]
 };
 const extraFor = r => (["master", "branchAdmin"].includes(r) ? EXTRA.admin : ["accountant", "receptionist"].includes(r) ? EXTRA.staff
   : ["student", "parent"].includes(r) ? EXTRA.family : EXTRA[r] || []);
@@ -316,7 +316,7 @@ export function route() {
   $$("[data-nav]").forEach(a => a.classList.toggle("on", a.dataset.nav === S.page));
   // પાનાનો છેલ્લો ફોટો તરત બતાવો, નવી માહિતી આવે એટલે બદલાઈ જાય
   // ફોર્મવાળાં પાનાંનો જૂનો ફોટો નહીં (ભૂલથી જૂના ફોટામાં લખાઈ ન જાય)
-  const NOSNAP = ["admit", "pay", "oldpay", "sched", "assign", "receipt", "tt", "diary", "hwchk", "marks", "rcard", "notice-new", "notices", "notice", "crm-new", "lead", "nextyr"];
+  const NOSNAP = ["admit", "pay", "oldpay", "sched", "assign", "receipt", "tt", "diary", "hwchk", "marks", "rcard", "notice-new", "notices", "notice", "crm-new", "lead", "nextyr", "help", "hticket", "helpdesk"];
   let last = null; try { if (!NOSNAP.includes(S.page)) last = localStorage.getItem(PK()); } catch {}
   v.innerHTML = last || SKEL;
   // જૂનો ફોટો દેખાય ત્યાં સુધી બટન દબાય નહીં

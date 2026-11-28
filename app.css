@@ -495,3 +495,19 @@ dialog#modal::backdrop { background: rgba(17, 24, 39, .45); }
 .camp { background: #14225A; color: #FDE68A; border-radius: 10px; padding: 6px 10px; font-weight: 700; font-size: 14px; align-self: flex-start; }
 .democard { box-shadow: 0 0 0 1.5px #F9A8D4; background: #FFF7FB; }
 .democard .lrow { gap: 8px; }
+/* ---------- મદદ ---------- */
+.msg { background: var(--card, #fff); border-radius: 14px; padding: 10px 12px; box-shadow: 0 0 0 1px var(--line); max-width: 88%; }
+.msg p { margin: 0 0 4px; white-space: pre-wrap; }
+.msg.me { background: #EEF2FF; box-shadow: 0 0 0 1px #C7D2FE; }
+.msg.mine { align-self: flex-end; margin-left: auto; }
+.faq { border-top: 1px solid var(--line); padding: 10px 0; }
+.faq:first-of-type { border-top: 0; }
+.faq summary { font-weight: 600; cursor: pointer; }
+.faq p { margin: 6px 0 0; white-space: pre-wrap; color: var(--muted, #475569); }
+.faqrow { display: flex; flex-direction: column; gap: 6px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+label.chk { display: flex; gap: 8px; align-items: flex-start; font-size: 15px; }
+label.chk input { width: 20px; height: 20px; margin-top: 2px; flex: none; }
+.dnote { display: block; color: #7C3AED; font-weight: 600; }
+a.lrow { color: inherit; text-decoration: none; }
+a.lrow .grow { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.lgrow .pill { align-self: flex-start; }

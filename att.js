@@ -11,6 +11,7 @@ import { ACADEMY } from "./config.js";
 import { isBday } from "./home.js";
 import { diaryHomeCard, teachesIn } from "./diary.js";
 import { demoList, demoCardHtml, wireDemo } from "./crm.js";
+import { teacherHelpHtml, dayNotes, DN } from "./help.js";
 import { autoAttendance, homeNoticeHtml, wirePushAsk } from "./notify.js";
 
 const ST = { p: "હાજર", a: "ગેરહાજર", l: "મોડો", h: "રજા" };
@@ -85,7 +86,7 @@ export async function attHome(v) {
     often = Object.entries(cnt).filter(([, n]) => n >= 3).sort((a, b) => b[1] - a[1]).slice(0, 15)
       .map(([sid, n]) => ({ r: roster.find(x => x.id === sid), n })).filter(x => x.r);
   }
-  const noticeHtml = ME.role === "teacher" ? await homeNoticeHtml().catch(() => "") : "";
+  const noticeHtml = ME.role === "teacher" ? (await Promise.all([homeNoticeHtml().catch(() => ""), teacherHelpHtml().catch(() => "")])).join("") : "";
   if (S.me?.loginId !== ME.loginId || !v.isConnected) return; // વચ્ચે બહાર નીકળ્યા/પાનું બદલાયું
   const d0 = new Date(date + "T00:00:00");
   v.innerHTML = `
@@ -129,13 +130,13 @@ page("take", async v => {
   if (!canAtt()) { location.hash = "#/home"; return; }
   const batchId = arg(2), date = arg(3) || ymd();
   const ym = date.slice(0, 7), dd = date.slice(8, 10);
-  const [bs, roster, att, DEMO] = await Promise.all([getDoc(doc(db, "batches", batchId)), loadRoster(), getAtt(batchId, ym), demoList(batchId, date).catch(() => [])]);
+  const [bs, roster, att, DEMO, NOTE] = await Promise.all([getDoc(doc(db, "batches", batchId)), loadRoster(), getAtt(batchId, ym), demoList(batchId, date).catch(() => []), dayNotes(date).catch(() => ({}))]);
   if (!bs.exists()) { v.innerHTML = `<div class="empty">બેચ મળી નહીં.</div>`; return; }
   const b = { id: batchId, ...bs.data() };
   const kids = roster.filter(r => r.b === batchId).sort((x, y) => String(x.n).localeCompare(String(y.n), "gu"));
   const old = att?.days?.[dd];
   const M = {}, T = { ...(old?.t || {}) }, Rn = { ...(old?.r || {}) }, MAN = { ...(old?.t || {}) }; // MAN = ઘડિયાળમાંથી જાતે પસંદ કરેલો સમય
-  kids.forEach(k => M[k.id] = old?.s?.[k.id] || "p");
+  kids.forEach(k => M[k.id] = old?.s?.[k.id] || (["absent", "leave"].includes(NOTE[k.id]?.k) ? "h" : "p"));   // વાલીએ "નહીં આવે" / મંજૂર રજા → રજા
   const draw = () => {
     const c = { p: 0, a: 0, l: 0, h: 0 }; kids.forEach(k => c[M[k.id]]++);
     v.innerHTML = `
@@ -150,7 +151,7 @@ page("take", async v => {
         const st = M[k.id];
         return `<div class="att ${{ p: "", a: "ab", l: "lt", h: "lv" }[st]}" data-sid="${esc(k.id)}" role="button" tabindex="0" aria-label="${esc(k.n)}: ${ST[st]}">
           <span class="rn">${i + 1}</span>
-          <span class="grow"><b>${esc(k.n)}</b>${st === "l" ? `<span class="sub late">${lateBy(T[k.id], b.start) ? lateBy(T[k.id], b.start) + " મિનિટ મોડો • " : ""}<button type="button" class="link-btn" data-tm="${esc(k.id)}">સમય બદલો ✎</button>${Rn[k.id] ? " • " + esc(Rn[k.id]) : ""}</span>` : ""}</span>
+          <span class="grow"><b>${esc(k.n)}</b>${NOTE[k.id] ? `<span class="sub dnote">${DN[NOTE[k.id].k]?.[0] || ""} ${esc(DN[NOTE[k.id].k]?.[1] || "")}</span>` : ""}${st === "l" ? `<span class="sub late">${lateBy(T[k.id], b.start) ? lateBy(T[k.id], b.start) + " મિનિટ મોડો • " : ""}<button type="button" class="link-btn" data-tm="${esc(k.id)}">સમય બદલો ✎</button>${Rn[k.id] ? " • " + esc(Rn[k.id]) : ""}</span>` : ""}</span>
           <span class="st">${st === "l" ? "મોડો " + esc(T[k.id] || "") : ST[st]}</span></div>`;
       }).join("")}</div>`}
       ${demoCardHtml(DEMO)}

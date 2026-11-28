@@ -20,6 +20,7 @@ import { familyDiaryHtml, wireYt } from "./diary.js";
 import { familyResultHtml } from "./results.js";
 import { homeNoticeHtml, wirePushAsk } from "./notify.js";
 import { leadPrefill, crmJoined, referCardHtml } from "./crm.js";
+import { helpTileHtml } from "./help.js";
 
 const STDS = ["7", "8", "9", "10", "11", "12"];
 const COURSES = ["NEET", "GUJCET", "JEE", "NMMS", "CET"];
@@ -696,7 +697,7 @@ export function studentHomeHtml(s, photo = "", sched = null, live = false, att =
       <a class="tile ${sid ? "" : "soon"}" ${sid ? `href="#/mydiary/${encodeURIComponent(sid)}"` : ""}>${ic("book", 28)}<span>ગૃહકાર્ય, લેક્ચર</span></a>
       <a class="tile ${sid ? "" : "soon"}" ${sid ? `href="#/myresults/${encodeURIComponent(sid)}"` : ""}>${ic("trophy", 28)}<span>ટેસ્ટ, ગુણ</span></a>
     </div>
-    <p class="muted center">સૂચનાઓ આગળના ભાગમાં ઉમેરાશે.</p>`;
+    ${live && sid ? helpTileHtml() : ""}`;
 }
 
 page("viewas", async v => {
@@ -793,6 +794,7 @@ export async function familyHome(v) {
     ${nt}
     ${kids.map(k => todayCard(k.att, k.id, String(k.name || "").split(" ")[1] || k.name)).join("")}
     ${kids.map(k => k.res + k.dia).join("")}
+    ${kids.length ? helpTileHtml() : ""}
     ${rf}
     <div class="card hello"><h1>નમસ્તે 🙏</h1><p>${esc(branchName(S.branchId))} • ${kids.length > 1 ? `${kids.length} બાળકો` : "વાલી"}</p></div>
     ${kids.map(k => {

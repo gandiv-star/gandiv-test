@@ -92,6 +92,7 @@ page("notices", async v => {
   const draw = () => {
     const L = list.filter(n => !f || n.k === f);
     v.innerHTML = `
+      ${isAdmin() ? `<a class="btn line big" href="#/helpdesk">💬 મદદ ઇનબોક્સ (વાલી / વિદ્યાર્થીની વાત)</a>` : ""}
       <div class="row-between"><h1 class="page-title" style="margin:0">નોટિસ</h1>${canNotice() ? `<a class="btn primary" href="#/notice-new">${ic("plus", 18)} નવી નોટિસ</a>` : ""}</div>
       ${pushAskHtml()}
       <div class="hscroll">${[["", "બધી"], ...Object.entries(KINDS).map(([k, x]) => [k, x[1] + " " + x[0]])].map(([k, l]) => `<button type="button" class="chip ${f === k ? "on" : ""}" data-nf="${k}">${l}</button>`).join("")}</div>
