@@ -1,6 +1,6 @@
 // ગાંડિવ એકેડેમી V2 — ઝડપ અને offline માટે. કોડ બદલાય ત્યારે VERSION વધારવું.
-const VERSION = "gv2-33";
-const FILES = ["./", "index.html", "app.css", "config.js", "fb.js", "core.js", "auth.js", "admin.js", "students.js", "fees.js", "att.js", "home.js", "diary.js", "results.js", "toppers.js", "notify.js", "crm.js", "qr.js", "logo.png", "icon-192.png", "manifest.json"];
+const VERSION = "gv2-34";
+const FILES = ["./", "index.html", "app.css", "config.js", "fb.js", "core.js", "auth.js", "admin.js", "students.js", "fees.js", "att.js", "home.js", "diary.js", "results.js", "toppers.js", "notify.js", "crm.js", "qr.js", "help.js", "logo.png", "icon-192.png", "manifest.json"];
 const SDK = ["firebase-app.js", "firebase-auth.js", "firebase-firestore.js"].map(f => "https://www.gstatic.com/firebasejs/10.12.2/" + f);
 
 self.addEventListener("install", e => {
